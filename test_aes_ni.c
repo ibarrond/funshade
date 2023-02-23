@@ -1,8 +1,8 @@
 
 #define _POSIX_C_SOURCE 199309L // CLOCK_REALTIME
 
-#include "../aes_ni.h"
-#include "../aes_standalone.h"
+#include "aes_ni.h"
+#include "aes_tiny.h"
 #include <string.h> // memcmp
 #include <stdio.h>  // printf
 #include <time.h>   // clock_gettime
@@ -22,7 +22,7 @@ void toc(char *msg){
 
 void print_array(char *name, uint8_t *array, size_t size){
     printf("%s = [", name);
-    for (int i = 0; i < size; i++){
+    for (size_t i = 0; i < size; i++){
         printf("%02x, ", array[i]);
     }printf("]\n");
 }
