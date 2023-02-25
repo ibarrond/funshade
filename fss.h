@@ -49,9 +49,9 @@
 // Positions of left and right elements in the output of G 
 #define S_L_PTR         0
 #define S_R_PTR         (S_L_PTR + S_LEN)
-#define V_L_PTR         (S_R_PTR + V_LEN)
+#define V_L_PTR         (S_R_PTR + S_LEN)
 #define V_R_PTR         (V_L_PTR + V_LEN)
-#define T_L_PTR         (V_R_PTR + 1)
+#define T_L_PTR         (V_R_PTR + V_LEN)
 #define T_R_PTR         (T_L_PTR + 1)
 
 // Positions of the elements in key chain
@@ -70,6 +70,8 @@ struct fss_key{
 //----------------------------------------------------------------------------//
 //--------------------------------- PUBLIC -----------------------------------//
 //----------------------------------------------------------------------------//
+
+void bit_decomposition(DTYPE_t alpha, bool *alpha_bits);
 
 // sample alpha, s0 and s1 from the uniform distribution over {0,1}^s_len
 void init_states_n_mask(DTYPE_t alpha, uint8_t s0[S_LEN], uint8_t s1[S_LEN], size_t s_len);

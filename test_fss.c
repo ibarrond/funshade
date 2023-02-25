@@ -48,7 +48,7 @@ void test_fss(int n_times) {
     for (int i=0; i<n_times; i++)
     {
         // randombytes_buf(&x, sizeof(DTYPE_t));
-        x = alpha;
+        x = 15;
         o0 = DCF_eval(0, &k0, x);
         o1 = DCF_eval(1, &k1, x);
         o = o0 + o1; // o0+o1 should be equal to (x<alpha)
@@ -57,7 +57,15 @@ void test_fss(int n_times) {
     }
 }
 
+void test_bit_decomposition(){
+    DTYPE_t x = 0xFD;
+    bool *x_bits = (uint8_t *) malloc(N_BITS);
+    bit_decomposition(x, x_bits);
+    print_array("x_bits", (uint8_t*)x_bits, N_BITS);
+}
+
 int main() {
     test_fss(1);
+    // test_bit_decomposition();
     exit(0);
 }
