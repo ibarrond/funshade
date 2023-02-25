@@ -38,19 +38,34 @@ void test_fss(int n_times) {
     uint8_t *s1 = (uint8_t *) malloc(S_LEN);
     init_states_n_mask(alpha, s0, s1, S_LEN);
 
-    struct fss_key k0={0}, k1={0};
+    struct fss_key k0={0}, k1={0}, k0_literal={0}, k1_literal={0};
     randombytes_buf(&alpha, sizeof(DTYPE_t));
 
-    // Generate keys once
-    DCF_gen(alpha, s0, s1, &k0, &k1);
+    // // Generate keys once
+    // DCF_gen(alpha, s0, s1, &k0, &k1);
+    
+    // // Test keys for multiple input values x
+    // for (int i=0; i<n_times; i++)
+    // {
+    //     randombytes_buf(&x, sizeof(DTYPE_t));
+    //     // x = 15;
+    //     o0 = DCF_eval(0, &k0, x);
+    //     o1 = DCF_eval(1, &k1, x);
+    //     o = o0 + o1; // o0+o1 should be equal to (x<alpha)
+    //     // o0+o1 should be equal to (x<alpha)
+    //     printf("x=%-10u,\t alpha=%-10u,\t  o0=%-10u,\t  o1=%-10u,\t  o0+o1=%-10u,\t  (x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
+    // }
+
+    
+    DCF_gen_literal(alpha, s0, s1, &k0_literal, &k1_literal);
 
     // Test keys for multiple input values x
     for (int i=0; i<n_times; i++)
     {
-        // randombytes_buf(&x, sizeof(DTYPE_t));
-        x = 15;
-        o0 = DCF_eval(0, &k0, x);
-        o1 = DCF_eval(1, &k1, x);
+        randombytes_buf(&x, sizeof(DTYPE_t));
+        // x = 15;
+        o0 = DCF_eval_literal(0, &k0_literal, x);
+        o1 = DCF_eval_literal(1, &k1_literal, x);
         o = o0 + o1; // o0+o1 should be equal to (x<alpha)
         // o0+o1 should be equal to (x<alpha)
         printf("x=%-10u,\t alpha=%-10u,\t  o0=%-10u,\t  o1=%-10u,\t  o0+o1=%-10u,\t  (x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));

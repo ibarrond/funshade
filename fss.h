@@ -82,6 +82,9 @@ void init_states_n_mask(DTYPE_t alpha, uint8_t s0[S_LEN], uint8_t s1[S_LEN], siz
 //  - k0, k1:    pointers to the keys to be generated
 void DCF_gen(DTYPE_t alpha, uint8_t s0[S_LEN], uint8_t s1[S_LEN], struct fss_key *k0, struct fss_key *k1);
 
+//Second attempt.
+void DCF_gen_literal(DTYPE_t alpha, uint8_t s0[S_LEN], uint8_t s1[S_LEN], struct fss_key *k0, struct fss_key *k1);
+
 // FSS evaluation
 //  - b:     party number (0 or 1)
 //  - kb:    pointer to the key of the party (k0 or k1)
