@@ -1,86 +1,67 @@
 
 #define _POSIX_C_SOURCE 199309L // CLOCK_REALTIME
-
+#define TIMEIT false // 1 to time the functions, 0 otherwise
 #include <string.h> // memcmp
 #include <stdio.h>  // printf
 #include <time.h>   // clock_gettime
 
 #include "fss.h"     // FSS functions
 
-
+// ------------------------------ AUXILIARY --------------------------------- //
 struct timespec start, end; // time-stamps
-
 void tic(){
-    clock_gettime(CLOCK_REALTIME, &start); // get initial time-stamp
+    if (TIMEIT)
+        clock_gettime(CLOCK_REALTIME, &start); // get initial time-stamp
 }
 void toc(char *msg){
-    clock_gettime(CLOCK_REALTIME, &end);   // get final time-stamp
-    double t_ns = (double)(end.tv_sec - start.tv_sec) * 1.0e9 +
-                (double)(end.tv_nsec - start.tv_nsec);
-    printf("Time taken for %s: %f ns\n", msg, t_ns);
-}
-
-void print_array(char *name, uint8_t *array, size_t size){
-    printf("%s = [", name);
-    for (size_t i = 0; i < size; i++){
-        printf("%02x, ", array[i]);
-    }printf("]\n");
+    if (TIMEIT){
+        clock_gettime(CLOCK_REALTIME, &end);   // get final time-stamp
+        double t_ns = (double)(end.tv_sec - start.tv_sec) * 1.0e9 +
+                    (double)(end.tv_nsec - start.tv_nsec);
+        printf("Time taken for %s: %f ns\n", msg, t_ns);
+    }
 }
 
 
+// ------------------------------ TESTS ------------------------------------- //
 void test_fss(int n_times) {
-
     // Inputs and outputs to FSS gate
-    DTYPE_t alpha=0, x, o0, o1, o;
+    DTYPE_t alpha=0, // random mask
+            x,       // masked input to DCF gate
+            o0,      // output of FSS gate in party 0
+            o1,      // output of FSS gate in party 1
+            o;       // reconstructed output of DCF gate, should yield (x<alpha)
 
-    // Generate empty states (s0, s1), keys (k0, k1), and a random mask alpha
-    uint8_t *s0 = (uint8_t *) malloc(S_LEN);
-    uint8_t *s1 = (uint8_t *) malloc(S_LEN);
-    init_states_n_mask(alpha, s0, s1, S_LEN);
-
-    struct fss_key k0={0}, k1={0}, k0_literal={0}, k1_literal={0};
-    randombytes_buf(&alpha, sizeof(DTYPE_t));
-
-    // // Generate keys once
-    // DCF_gen(alpha, s0, s1, &k0, &k1);
+    // Allocate empty keys (k0, k1)
+    struct fss_key k0={0}, k1={0};
     
-    // // Test keys for multiple input values x
-    // for (int i=0; i<n_times; i++)
-    // {
-    //     randombytes_buf(&x, sizeof(DTYPE_t));
-    //     // x = 15;
-    //     o0 = DCF_eval(0, &k0, x);
-    //     o1 = DCF_eval(1, &k1, x);
-    //     o = o0 + o1; // o0+o1 should be equal to (x<alpha)
-    //     // o0+o1 should be equal to (x<alpha)
-    //     printf("x=%-10u,\t alpha=%-10u,\t  o0=%-10u,\t  o1=%-10u,\t  o0+o1=%-10u,\t  (x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
-    // }
+    // Generate a random mask alpha
+    alpha = init_dtype_random();
 
+    // Generate empty states (s0, s1). Alternatively, call DCF_gen() for automatic generation.
+    uint8_t s0[S_LEN] = {0}, s1[S_LEN] = {0};
+    init_states_random(s0, s1);
+
+    // Generate keys once
     
-    DCF_gen_literal(alpha, s0, s1, &k0_literal, &k1_literal);
+    tic(); DCF_gen(alpha, &k0, &k1); toc("DCF_gen");
+    
 
     // Test keys for multiple input values x
     for (int i=0; i<n_times; i++)
     {
-        randombytes_buf(&x, sizeof(DTYPE_t));
-        // x = 15;
-        o0 = DCF_eval_literal(0, &k0_literal, x);
-        o1 = DCF_eval_literal(1, &k1_literal, x);
-        o = o0 + o1; // o0+o1 should be equal to (x<alpha)
-        // o0+o1 should be equal to (x<alpha)
-        printf("x=%-10u,\t alpha=%-10u,\t  o0=%-10u,\t  o1=%-10u,\t  o0+o1=%-10u,\t  (x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
+        x = init_dtype_random();  // generate a random input x
+        
+        tic(); o0 = DCF_eval(0, &k0, x); toc("DCF_eval(0)");
+        tic(); o1 = DCF_eval(1, &k1, x); toc("DCF_eval(1)");
+        o = o0 + o1; 
+        printf("x=%-10u | alpha=%-10u | o0=%-10u | o1=%-10u o0+o1=%-10u | "\
+               "(x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
     }
 }
 
-void test_bit_decomposition(){
-    DTYPE_t x = 0xFD;
-    bool *x_bits = (uint8_t *) malloc(N_BITS);
-    bit_decomposition(x, x_bits);
-    print_array("x_bits", (uint8_t*)x_bits, N_BITS);
-}
-
+// ------------------------------ MAIN -------------------------------------- //
 int main() {
-    test_fss(1);
-    // test_bit_decomposition();
+    test_fss(15);
     exit(0);
 }

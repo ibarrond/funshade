@@ -20,7 +20,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 ## target definitions #########################################################
 ###############################################################################
 
-add_compile_options(-O0 -msse -msse2 -maes -march=native -Wall -Wextra)
+add_compile_options(-O3 -msse -msse2 -maes -march=native -Wall -Wextra)
 add_compile_definitions(USE_LIBSODIUM)
 include_directories(.)
 link_libraries(sodium)
