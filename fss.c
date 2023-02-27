@@ -24,8 +24,9 @@ inline void xor_cond(uint8_t *a, uint8_t *b, uint8_t *res, size_t len, bool cond
     }
 }
 
-
+// -------------------------------------------------------------------------- //
 // --------------------------- RANDOMNESS SAMPLING -------------------------- //
+// -------------------------------------------------------------------------- //
 void init_libsodium(){
     if (sodium_init() < 0) /* panic! the library couldn't be initialized, it is not safe to use */
         {
@@ -91,8 +92,11 @@ DTYPE_t init_dtype_random_seeded(const uint8_t seed[randombytes_SEEDBYTES]){
 DTYPE_t init_dtype_random(){
     return init_dtype_random_seeded(NULL);
 }
+
+// -------------------------------------------------------------------------- //
 // ----------------- DISTRIBUTED COMPARISON FUNCTION (DCF) ------------------ //
-void DCF_gen_seeded(DTYPE_t alpha, struct fss_key *k0, struct fss_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]){
+// -------------------------------------------------------------------------- //
+void DCF_gen_seeded(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]){
     // Inputs and outputs to G
     uint8_t s0_i[S_LEN] = {0},  g_out_0[G_OUT_LEN]= {0},
             s1_i[S_LEN] = {0},  g_out_1[G_OUT_LEN]= {0};
@@ -173,13 +177,13 @@ void DCF_gen_seeded(DTYPE_t alpha, struct fss_key *k0, struct fss_key *k1, uint8
     memcpy(k0->CW_chain, CW_chain, CW_CHAIN_LEN);
     memcpy(k1->CW_chain, CW_chain, CW_CHAIN_LEN);
 }
-void DCF_gen(DTYPE_t alpha, struct fss_key *k0, struct fss_key *k1){
+void DCF_gen(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1){
     DCF_gen_seeded(alpha, k0, k1, NULL, NULL);
 }
 
 
 
-DTYPE_t DCF_eval(bool b, struct fss_key *kb, DTYPE_t x){
+DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x){
     DTYPE_t V = 0;                                                              // L1
     bool t = b, x_bits[N_BITS];
     uint8_t s[S_LEN], g_out[G_OUT_LEN], CW_chain[CW_CHAIN_LEN];     
@@ -212,4 +216,28 @@ DTYPE_t DCF_eval(bool b, struct fss_key *kb, DTYPE_t x){
     }
     V += (b?-1:1) * (TO_DTYPE(s) + t*TO_DTYPE(CW_chain + LAST_CW_PTR));         // L13
     return V;
+}
+
+// -------------------------------------------------------------------------- //
+// ------------------------- INTERVAL CONTAINMENT --------------------------- //
+// -------------------------------------------------------------------------- //
+void IC_gen(DTYPE_t r_in, DTYPE_t r_out, DTYPE_t p, DTYPE_t q, struct ic_key *k0_ic, struct ic_key  *k1_ic){
+    DTYPE_t gamma = r_in - 1;
+    struct dcf_key k0_dcf={0}, k1_dcf={0};  DCF_gen(gamma, &k0_dcf, &k1_dcf);
+    DTYPE_t q_prime = q + 1, alpha_p = p + r_in, alpha_q = q + r_in, alpha_q_prime = q_prime + r_in;
+    DTYPE_t z0=0, z1=0;
+    z0 = init_dtype_random();
+    z1 = r_out + (alpha_p>alpha_q?1:0) - (alpha_p>p?1:0) + (alpha_q_prime>q_prime?1:0) + (alpha_q_prime==0?1:0);
+    k0_ic->z = z0;
+    k1_ic->z = z1;
+    memcpy(&k0_ic->dcf_k, &k0_dcf, sizeof(struct dcf_key));
+    memcpy(&k1_ic->dcf_k, &k1_dcf, sizeof(struct dcf_key));
+}
+
+DTYPE_t IC_eval(bool b, DTYPE_t p, DTYPE_t q, struct ic_key *kb_ic, DTYPE_t x){
+    DTYPE_t q_prime = q + 1, x_p = x - p - 1, x_q_prime = x + q_prime - 1;
+    DTYPE_t output_1 = DCF_eval(b, &kb_ic->dcf_k, x_p);
+    DTYPE_t output_2 = DCF_eval(b, &kb_ic->dcf_k, x_q_prime);
+    DTYPE_t output = b * ((x>p?1:0)-(x>q_prime?1:0)) - output_1 + output_2 + kb_ic->z;
+    return output;
 }

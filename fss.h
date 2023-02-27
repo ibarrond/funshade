@@ -67,9 +67,14 @@
 //----------------------------------------------------------------------------//
 //--------------------------------- PUBLIC -----------------------------------//
 //----------------------------------------------------------------------------//
-struct fss_key{
+struct dcf_key{
     uint8_t s[S_LEN];
     uint8_t CW_chain[CW_CHAIN_LEN];
+};
+
+struct ic_key{
+    struct dcf_key dcf_k;
+    DTYPE_t z;
 };
 
 //.............................. RANDOMNESS GEN ..............................//
@@ -86,15 +91,19 @@ void init_states_random_seeded(uint8_t sa[S_LEN], uint8_t sb[S_LEN], const uint8
 /// @param k1   pointer to the key of party 1
 /// @param s0   Initial seed/state of party 0 (if NULL/unspecified, will be generated)
 /// @param s1   Initial seed/state of party 1 (if NULL/unspecified, will be generated)
-void DCF_gen       (DTYPE_t alpha, struct fss_key *k0, struct fss_key *k1);
-void DCF_gen_seeded(DTYPE_t alpha, struct fss_key *k0, struct fss_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]);
+void DCF_gen       (DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1);
+void DCF_gen_seeded(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]);
 
 /// @brief Evaluate the DCF gate for a given input x in a 2PC setting
 /// @param b    party number (0 or 1)
 /// @param kb   pointer to the key of the party
 /// @param x    public input to the FSS gate
 /// @return     result of the FSS gate o, such that o0 + o1 = BETA*(x>alpha)
-DTYPE_t DCF_eval(bool b, struct fss_key *kb, DTYPE_t x);
-DTYPE_t DCF_eval_literal(bool b, struct fss_key *kb, DTYPE_t x);
+DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x);
+
+
+//................................ IC GATE ...................................//
+void IC_gen(DTYPE_t r_in, DTYPE_t r_out, DTYPE_t p, DTYPE_t q, struct ic_key *k0_ic, struct ic_key *k1_ic);
+DTYPE_t IC_eval(bool b, DTYPE_t p, DTYPE_t q, struct ic_key *kb_ic, DTYPE_t x);
 
 #endif // __FSS_H__

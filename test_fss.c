@@ -24,7 +24,7 @@ void toc(char *msg){
 
 
 // ------------------------------ TESTS ------------------------------------- //
-void test_fss(int n_times) {
+void test_dcf(int n_times) {
     // Inputs and outputs to FSS gate
     DTYPE_t alpha=0, // random mask
             x,       // masked input to DCF gate
@@ -33,7 +33,7 @@ void test_fss(int n_times) {
             o;       // reconstructed output of DCF gate, should yield (x<alpha)
 
     // Allocate empty keys (k0, k1)
-    struct fss_key k0={0}, k1={0};
+    struct dcf_key k0={0}, k1={0};
     
     // Generate a random mask alpha
     alpha = init_dtype_random();
@@ -43,10 +43,8 @@ void test_fss(int n_times) {
     init_states_random(s0, s1);
 
     // Generate keys once
-    
     tic(); DCF_gen(alpha, &k0, &k1); toc("DCF_gen");
     
-
     // Test keys for multiple input values x
     for (int i=0; i<n_times; i++)
     {
@@ -60,8 +58,39 @@ void test_fss(int n_times) {
     }
 }
 
+void test_ic(int n_times){
+    // Inputs and outputs to FSS gate
+    DTYPE_t alpha=0, // random mask
+            x,       // masked input to DCF gate
+            o0,      // output of FSS gate in party 0
+            o1,      // output of FSS gate in party 1
+            o;       // reconstructed output of DCF gate, should yield (x<alpha)
+
+    // Allocate empty keys (k0, k1)
+    struct ic_key k0={0}, k1={0};
+    
+    // Generate a random mask alpha
+    alpha = init_dtype_random();
+
+    // Generate keys once
+    tic(); IC_gen(alpha, 0, 0, (1<<31), &k0, &k1); toc("IC_gen");
+    
+    // Test keys for multiple input values x
+    for (int i=0; i<n_times; i++)
+    {
+        x = init_dtype_random();  // generate a random input x
+        
+        tic(); o0 = IC_eval(0,0, (1<<31), &k0, x); toc("IC_eval(0)");
+        tic(); o1 = IC_eval(1, 0, (1<<31), &k1, x); toc("IC_eval(1)");
+        o = o0 + o1; 
+        printf("x=%-10u | alpha=%-10u | o0=%-10u | o1=%-10u o0+o1=%-10u | "\
+               "(x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
+    }
+}
+
 // ------------------------------ MAIN -------------------------------------- //
 int main() {
-    test_fss(15);
+    // test_dcf(15);
+    test_ic(15);
     exit(0);
 }
