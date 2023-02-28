@@ -30,5 +30,4 @@ link_libraries(sodium)
 # set_target_properties(funshade PROPERTIES SOVERSION 1)
 # set_target_properties(funshade PROPERTIES PUBLIC_HEADER src/main/fss.h)
 
-add_executable(test_fss test_fss.c fss.c aes_ni.c aes_tiny.c)
-add_executable(test_aes_ni test_aes_ni.c fss.c aes_ni.c aes_tiny.c)
+add_executable(test_fss test_fss.c fss.c aes.c)

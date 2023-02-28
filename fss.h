@@ -11,19 +11,18 @@
 // DEPENDENCIES
 // #define USE_LIBSODIUM   // Use libsodium for secure random number generation
 #ifdef USE_LIBSODIUM
-#include "sodium.h"     // libsodium
+    #define SEED_LEN        randombytes_SEEDBYTES
+    #include "sodium.h"     // libsodium
+#else
+    #define SEED_LEN        32
 #endif
-
-#include "aes_ni.h" // AES-128-NI
-// #include "aes_tiny.h"  // AES-128 standalone
+#include "aes.h" // AES-128-NI and AES-128-standalone
 
 //----------------------------------------------------------------------------//
 //------------------------  CONFIGURABLE PARAMETERS --------------------------//
 //----------------------------------------------------------------------------//
-#define SEC_PARAM       128                 // Security parameter in bits
-
-#define DTYPE_t         uint32_t            // Data type of the input to FSS gate
-#define N_BITS          sizeof(DTYPE_t)*8   // Number of bits in DTYPE_t
+#define SEC_PARAM       128                 // Security parameter in bits.
+#define DTYPE_t         int32_t             // Data type of the input to FSS gate
 #define BETA            1                   // Value of the output of the FSS gate
 
 //----------------------------------------------------------------------------//
@@ -32,9 +31,10 @@
 // UTILS
 #define CEIL(x,y)       (((x) - 1) / (y) + 1)               // x/y rounded up to the nearest integer
 #define assertm(exp, msg) assert(((void)msg, exp))          // Assert with message
-#define randombytes_SEEDBYTES 32                            // Seed size for randombytes_buf_deterministic()
 
 // FIXED DEFINITIONS
+#define N_BITS          sizeof(DTYPE_t)*8                   // Number of bits in DTYPE_t
+
 #define G_IN_LEN        CEIL(SEC_PARAM,8)                   // [SEC_PARAM/8] input bytes
 #define OUT_LEN         CEIL(2*SEC_PARAM+2*N_BITS+2,8)      // output bytes
 #define G_OUT_LEN       (CEIL(OUT_LEN,G_IN_LEN)*G_IN_LEN)   // output bytes of G
@@ -63,7 +63,13 @@
 #define T_L_PTR         (V_R_PTR + V_LEN)                   // Position of bit t_l in G output
 #define T_R_PTR         (T_L_PTR + 1)                       // Position of bit t_r in G output
 
-
+//----------------------------------------------------------------------------//
+//--------------------------------  PRIVATE  ---------------------------------//
+//----------------------------------------------------------------------------//
+void xor(uint8_t *a, uint8_t *b, uint8_t *res, size_t s_len);
+void bit_decomposition(DTYPE_t value, bool *bits_array);
+void xor_cond(uint8_t *a, uint8_t *b, uint8_t *res, size_t len, bool cond);
+void init_libsodium();
 //----------------------------------------------------------------------------//
 //--------------------------------- PUBLIC -----------------------------------//
 //----------------------------------------------------------------------------//
@@ -78,14 +84,18 @@ struct ic_key{
 };
 
 //.............................. RANDOMNESS GEN ..............................//
-DTYPE_t init_dtype_random();
-DTYPE_t init_dtype_random_seeded(const uint8_t seed[randombytes_SEEDBYTES]);
-void init_states_random(uint8_t sa[S_LEN], uint8_t sb[S_LEN]);
-void init_states_random_seeded(uint8_t sa[S_LEN], uint8_t sb[S_LEN], const uint8_t seed[randombytes_SEEDBYTES]);
+// Manages randomness. Uses libsodium (cryptographically secure) if USE_LIBSODIUM
+//  is defined, otherwise uses rand() (not cryptographically secure but portable).
+DTYPE_t random_dtype();                                    // Non-deterministic seed 
+DTYPE_t random_dtype_seeded(const uint8_t seed[SEED_LEN]);
+void random_buffer(uint8_t buffer[], size_t buffer_len);   // Non-deterministic seed 
+void random_buffer_seeded(uint8_t buffer[], size_t buffer_len, const uint8_t seed[SEED_LEN]);
 
 //................................ DCF GATE ..................................//
+// FSS gate for the Distributed Conditional Function (DCF) gate.
+//  Yields o0 + o1 = BETA*((unsigned)x>(unsigned)alpha)
 
-/// @brief Generate a FSS key pair for the Distributed Conditional Function (DCF) gate
+/// @brief Generate a FSS key pair for the DCF gate
 /// @param alpha input mask (should be uniformly random in DTYPE_t)
 /// @param k0   pointer to the key of party 0
 /// @param k1   pointer to the key of party 1
@@ -98,7 +108,7 @@ void DCF_gen_seeded(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1, uint8
 /// @param b    party number (0 or 1)
 /// @param kb   pointer to the key of the party
 /// @param x    public input to the FSS gate
-/// @return     result of the FSS gate o, such that o0 + o1 = BETA*(x>alpha)
+/// @return     result of the FSS gate o, such that o0 + o1 = BETA*((unsigned)x>(unsigned)alpha)
 DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x);
 
 
