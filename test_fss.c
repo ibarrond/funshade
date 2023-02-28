@@ -145,7 +145,7 @@ bool test_ic(int n_times){
     r_in = random_dtype();
 
     // Generate keys once
-    DTYPE_t p = INT32_MIN, q = -1; // q = (UINT8_MAX/2)+1;
+    DTYPE_t p = (DTYPE_t)(1<<(N_BITS-1)), q = -1;
     tic(); IC_gen(r_in, 0, p, q, &k0, &k1); t_gen += toc("IC_gen");
     
     // Test keys for multiple input values x

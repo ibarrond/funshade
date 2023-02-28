@@ -183,14 +183,14 @@ void DCF_gen(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1){
     DCF_gen_seeded(alpha, k0, k1, NULL, NULL);
 }
 
-DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x){
+DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x_hat){
     DTYPE_t V = 0;     bool t = b, x_bits[N_BITS];                              // L1
     uint8_t s[S_LEN], g_out[G_OUT_LEN], CW_chain[CW_CHAIN_LEN];     
     // Copy the key elements to avoid modifying the original key
     memcpy(s, kb->s, S_LEN);
     memcpy(CW_chain, kb->CW_chain, CW_CHAIN_LEN);
     // Decompose x into an array of bits
-    bit_decomposition(x, x_bits);
+    bit_decomposition(x_hat, x_bits);
 
     // Main loop
     for (size_t i = 0; i < N_BITS; i++)                                         // L2
@@ -228,9 +228,20 @@ void IC_gen(DTYPE_t r_in, DTYPE_t r_out, DTYPE_t p, DTYPE_t q, struct ic_key *k0
     k1_ic->z = -k0_ic->z + r_out + ((p+r_in)>(q+r_in)) - ((p+r_in)>(p)) + ((q+r_in+1)>(q+1)) + (q+r_in+1==0);
 }
 
-DTYPE_t IC_eval(bool b, DTYPE_t p, DTYPE_t q, struct ic_key *kb_ic, DTYPE_t x){
-    DTYPE_t output_1 = DCF_eval(b, &kb_ic->dcf_k, (x-p-1));
-    DTYPE_t output_2 = DCF_eval(b, &kb_ic->dcf_k, (x-q-1));
-    DTYPE_t output = b * ((x>p)-(x>q+1)) - output_1 + output_2 + kb_ic->z;
+DTYPE_t IC_eval(bool b, DTYPE_t p, DTYPE_t q, struct ic_key *kb_ic, DTYPE_t x_hat){
+    DTYPE_t output_1 = DCF_eval(b, &kb_ic->dcf_k, (x_hat-p-1));
+    DTYPE_t output_2 = DCF_eval(b, &kb_ic->dcf_k, (x_hat-q-1));
+    DTYPE_t output = b*((x_hat>p)-(x_hat>q+1)) - output_1 + output_2 + kb_ic->z;
     return output;
+}
+
+
+// -------------------------------------------------------------------------- //
+// --------------------------------- SIGN ----------------------------------- //
+// -------------------------------------------------------------------------- //
+void SIGN_gen(DTYPE_t r_in, DTYPE_t r_out, struct ic_key *k0, struct ic_key *k1){
+    IC_gen(r_in, r_out, (DTYPE_t)(1<<(N_BITS-1)), -1, k0, k1);
+}
+DTYPE_t SIGN_eval(bool b, struct ic_key *kb_ic, DTYPE_t x_hat){
+    return IC_eval(b, (DTYPE_t)(1<<(N_BITS-1)), -1, kb_ic, x_hat);
 }

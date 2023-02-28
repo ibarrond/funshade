@@ -105,15 +105,35 @@ void DCF_gen       (DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1);
 void DCF_gen_seeded(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]);
 
 /// @brief Evaluate the DCF gate for a given input x in a 2PC setting
-/// @param b    party number (0 or 1)
-/// @param kb   pointer to the key of the party
-/// @param x    public input to the FSS gate
-/// @return     result of the FSS gate o, such that o0 + o1 = BETA*((unsigned)x>(unsigned)alpha)
-DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x);
+/// @param b        party number (0 or 1)
+/// @param kb       pointer to the key of the party
+/// @param x_hat    public input to the FSS gate
+/// @return         result of the FSS gate o, such that o0 + o1 = BETA*((unsigned)x>(unsigned)alpha)
+DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x_hat);
 
 
 //................................ IC GATE ...................................//
+
+/// @brief Generate a FSS key pair for the Interval Containment (IC) gate.
+/// @param r_in     input mask (should be uniformly random in DTYPE_t)
+/// @param r_out    output mask (should be uniformly random in DTYPE_t)
+/// @param p        lower bound of the interval
+/// @param q        upper bound of the interval
+/// @param k0_ic    pointer to the key of party 0
+/// @param k1_ic    pointer to the key of party 1
 void IC_gen(DTYPE_t r_in, DTYPE_t r_out, DTYPE_t p, DTYPE_t q, struct ic_key *k0_ic, struct ic_key *k1_ic);
-DTYPE_t IC_eval(bool b, DTYPE_t p, DTYPE_t q, struct ic_key *kb_ic, DTYPE_t x);
+
+/// @brief Evaluate the IC gate for a given input x in a 2PC setting
+/// @param b        party number (0 or 1)
+/// @param p        lower bound of the interval
+/// @param q        upper bound of the interval
+/// @param kb_ic    pointer to the function key of the party
+/// @param x_hat    public input to the FSS gate
+/// @return 
+DTYPE_t IC_eval(bool b, DTYPE_t p, DTYPE_t q, struct ic_key *kb_ic, DTYPE_t x_hat);
+
+//............................... SIGN FUNCTION ..............................//
+void SIGN_gen(DTYPE_t r_in, DTYPE_t r_out, struct ic_key *k0, struct ic_key *k1);
+DTYPE_t SIGN_eval(bool b, struct ic_key *kb_ic, DTYPE_t x_hat);
 
 #endif // __FSS_H__
