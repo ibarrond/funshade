@@ -1,0 +1,67 @@
+#===============================================================================
+#============================== PROJECT METADATA ===============================
+#===============================================================================
+[project]
+name = "Funshade"
+version = "1.0.0"
+description = "Function Secret Sharing for Multiparty Computation"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "GNU GPLv3"}
+keywords = ["function-secret-sharing" , "FSS", "Multiparty Computation", "MPC", "cython", "cryptography"]
+authors = [
+  {name = "Alberto Ibarrondo", email = "ibarrond@eurecom.fr"},
+]
+classifiers = [
+    "Programming Language :: C",
+    "Programming Language :: Cython",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: Unix",
+    "Topic :: Security",
+    "Topic :: Security :: Cryptography",
+]
+
+dependencies = [
+  "numpy>=1.21"
+]
+
+# Minimum requirements for the build system to execute.
+[build-system]
+requires = [
+  "setuptools<=60.9",
+  "wheel",
+  "cython==3.0.0b1",
+  "numpy>=1.21",
+]
+
+#===============================================================================
+#========================= COMPILATION CONFIGURATION ===========================
+#===============================================================================
+#----------------------------- CYTHON EXTENSIONS -------------------------------
+[extensions.config]   # Common compilation config for all extensions
+include_dirs = ['fss']
+define_macros = [
+  ["NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"],
+  ["__PYX_ENUM_CLASS_DECL", "enum"], # Support enums in cython
+]
+extra_compile_args = [
+  {Windows = ["/O2","/openmp","/std:c++17"]},
+  {Linux = ["-O3", "-fopenmp"]},
+]
+extra_link_args = [
+  {Windows = []},
+  {Darwin = ["-fopenmp"]},
+  {Linux = ["-fopenmp"]},
+]
+libraries = []  # libraries to link with, cpplibraries above are added by default
+
+# List of extensions to compile. Custom compilation config can be defined for each
+[extensions.Funshade]
+fullname='Funshade.Funshade'    
+sources=['funshade/funshade.pyx', 'fss/fss.cpp', 'fss/aes.c']

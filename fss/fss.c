@@ -27,6 +27,7 @@ void xor_cond(uint8_t *a, uint8_t *b, uint8_t *res, size_t len, bool cond){
 // -------------------------------------------------------------------------- //
 // --------------------------- RANDOMNESS SAMPLING -------------------------- //
 // -------------------------------------------------------------------------- //
+#ifdef USE_LIBSODIUM
 void init_libsodium(){
     if (sodium_init() < 0) /* panic! the library couldn't be initialized, it is not safe to use */
         {
@@ -34,6 +35,7 @@ void init_libsodium(){
             exit(EXIT_FAILURE);
         }
 }
+#endif
 
 void random_buffer_seeded(uint8_t buffer[], size_t buffer_len, const uint8_t seed[SEED_LEN]){
     if (buffer==NULL)
@@ -96,7 +98,7 @@ DTYPE_t random_dtype(){
 // -------------------------------------------------------------------------- //
 // ----------------- DISTRIBUTED COMPARISON FUNCTION (DCF) ------------------ //
 // -------------------------------------------------------------------------- //
-void DCF_gen_seeded(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]){
+void DCF_gen_seeded(DTYPE_t alpha, struct ic_key *k0, struct ic_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]){
     // Inputs and outputs to G
     uint8_t s0_i[S_LEN],  g_out_0[G_OUT_LEN],
             s1_i[S_LEN],  g_out_1[G_OUT_LEN];
@@ -179,11 +181,11 @@ void DCF_gen_seeded(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1, uint8
     // Copy the resulting CW_chain                                              // L21
     memcpy(k1->CW_chain, k0->CW_chain, CW_CHAIN_LEN);
 }
-void DCF_gen(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1){
+void DCF_gen(DTYPE_t alpha, struct ic_key *k0, struct ic_key *k1){
     DCF_gen_seeded(alpha, k0, k1, NULL, NULL);
 }
 
-DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x_hat){
+DTYPE_t DCF_eval(bool b, struct ic_key *kb, DTYPE_t x_hat){
     DTYPE_t V = 0;     bool t = b, x_bits[N_BITS];                              // L1
     uint8_t s[S_LEN], g_out[G_OUT_LEN], CW_chain[CW_CHAIN_LEN];     
     // Copy the key elements to avoid modifying the original key
@@ -223,15 +225,18 @@ DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x_hat){
 // ------------------------- INTERVAL CONTAINMENT --------------------------- //
 // -------------------------------------------------------------------------- //
 void IC_gen(DTYPE_t r_in, DTYPE_t r_out, DTYPE_t p, DTYPE_t q, struct ic_key *k0_ic, struct ic_key  *k1_ic){
-    DCF_gen(r_in - 1, &k0_ic->dcf_k, &k1_ic->dcf_k);
+    DCF_gen((r_in-1), k0_ic, k1_ic);
     k0_ic->z = random_dtype();
-    k1_ic->z = -k0_ic->z + r_out + ((p+r_in)>(q+r_in)) - ((p+r_in)>(p)) + ((q+r_in+1)>(q+1)) + (q+r_in+1==0);
+    k1_ic->z = - k0_ic->z + r_out + (U(p+r_in)  > U(q+r_in))  // alpha_p > alpha_q
+                                  - (U(p+r_in)  > U(p))       // alpha_p > p
+                                  + (U(q+r_in+1)> U(q+1))     // alpha_q_prime > q_prime
+                                  + (U(q+r_in+1)==U(0));      // alpha_q_prime = -1
 }
 
 DTYPE_t IC_eval(bool b, DTYPE_t p, DTYPE_t q, struct ic_key *kb_ic, DTYPE_t x_hat){
-    DTYPE_t output_1 = DCF_eval(b, &kb_ic->dcf_k, (x_hat-p-1));
-    DTYPE_t output_2 = DCF_eval(b, &kb_ic->dcf_k, (x_hat-q-1));
-    DTYPE_t output = b*((x_hat>p)-(x_hat>q+1)) - output_1 + output_2 + kb_ic->z;
+    DTYPE_t output_1 = DCF_eval(b, kb_ic, (x_hat-p-1));
+    DTYPE_t output_2 = DCF_eval(b, kb_ic, (x_hat-q-2));
+    DTYPE_t output = b*((U(x_hat)>U(p))-(U(x_hat)>U(q+1))) - output_1 + output_2 + kb_ic->z;
     return output;
 }
 
@@ -240,8 +245,8 @@ DTYPE_t IC_eval(bool b, DTYPE_t p, DTYPE_t q, struct ic_key *kb_ic, DTYPE_t x_ha
 // --------------------------------- SIGN ----------------------------------- //
 // -------------------------------------------------------------------------- //
 void SIGN_gen(DTYPE_t r_in, DTYPE_t r_out, struct ic_key *k0, struct ic_key *k1){
-    IC_gen(r_in, r_out, (DTYPE_t)(1<<(N_BITS-1)), -1, k0, k1);
+    IC_gen(r_in, r_out, 0, (DTYPE_t)(1<<(N_BITS-1)), k0, k1);
 }
 DTYPE_t SIGN_eval(bool b, struct ic_key *kb_ic, DTYPE_t x_hat){
-    return IC_eval(b, (DTYPE_t)(1<<(N_BITS-1)), -1, kb_ic, x_hat);
+    return IC_eval(b, 0, (DTYPE_t)(1<<(N_BITS-1)), kb_ic, x_hat);
 }

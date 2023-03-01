@@ -9,10 +9,9 @@
 
 //----------------------------------------------------------------------------//
 // DEPENDENCIES
-// #define USE_LIBSODIUM   // Use libsodium for secure random number generation
 #ifdef USE_LIBSODIUM
-    #define SEED_LEN        randombytes_SEEDBYTES
     #include "sodium.h"     // libsodium
+    #define SEED_LEN        randombytes_SEEDBYTES
 #else
     #define SEED_LEN        32
 #endif
@@ -31,7 +30,7 @@
 // UTILS
 #define CEIL(x,y)       (((x) - 1) / (y) + 1)               // x/y rounded up to the nearest integer
 #define assertm(exp, msg) assert(((void)msg, exp))          // Assert with message
-
+#define U(x)            ((unsigned)(x))                     // Unsigned cast
 // FIXED DEFINITIONS
 #define N_BITS          sizeof(DTYPE_t)*8                   // Number of bits in DTYPE_t
 
@@ -69,19 +68,17 @@
 void xor(uint8_t *a, uint8_t *b, uint8_t *res, size_t s_len);
 void bit_decomposition(DTYPE_t value, bool *bits_array);
 void xor_cond(uint8_t *a, uint8_t *b, uint8_t *res, size_t len, bool cond);
+#ifdef USE_LIBSODIUM
 void init_libsodium();
+#endif
 //----------------------------------------------------------------------------//
 //--------------------------------- PUBLIC -----------------------------------//
 //----------------------------------------------------------------------------//
-struct dcf_key{
+typedef struct ic_key{
     uint8_t s[S_LEN];
     uint8_t CW_chain[CW_CHAIN_LEN];
-};
-
-struct ic_key{
-    struct dcf_key dcf_k;
     DTYPE_t z;
-};
+} ic_key;
 
 //.............................. RANDOMNESS GEN ..............................//
 // Manages randomness. Uses libsodium (cryptographically secure) if USE_LIBSODIUM
@@ -101,15 +98,15 @@ void random_buffer_seeded(uint8_t buffer[], size_t buffer_len, const uint8_t see
 /// @param k1   pointer to the key of party 1
 /// @param s0   Initial seed/state of party 0 (if NULL/unspecified, will be generated)
 /// @param s1   Initial seed/state of party 1 (if NULL/unspecified, will be generated)
-void DCF_gen       (DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1);
-void DCF_gen_seeded(DTYPE_t alpha, struct dcf_key *k0, struct dcf_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]);
+void DCF_gen       (DTYPE_t alpha, struct ic_key *k0, struct ic_key *k1);
+void DCF_gen_seeded(DTYPE_t alpha, struct ic_key *k0, struct ic_key *k1, uint8_t s0[S_LEN], uint8_t s1[S_LEN]);
 
 /// @brief Evaluate the DCF gate for a given input x in a 2PC setting
 /// @param b        party number (0 or 1)
 /// @param kb       pointer to the key of the party
 /// @param x_hat    public input to the FSS gate
 /// @return         result of the FSS gate o, such that o0 + o1 = BETA*((unsigned)x>(unsigned)alpha)
-DTYPE_t DCF_eval(bool b, struct dcf_key *kb, DTYPE_t x_hat);
+DTYPE_t DCF_eval(bool b, struct ic_key *kb, DTYPE_t x_hat);
 
 
 //................................ IC GATE ...................................//

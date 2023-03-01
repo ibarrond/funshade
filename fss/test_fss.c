@@ -4,7 +4,6 @@
 #include <string.h> // memcmp
 #include <stdio.h>  // printf
 #include <time.h>   // clock_gettime
-
 #include "fss.h"     // FSS functions
 #include "aes.h"     // AES-128-NI and AES-128-tiny (standalone)
 
@@ -13,7 +12,7 @@
 //----------------------------------------------------------------------------//
 #define TIMEIT  1 // set to 1 to time the functions
 #define PRINTIT 0 // set to 1 to print additional info
-#define N_REPETITIONS 1000
+#define N_REPETITIONS 1000000
 
 
 //----------------------------------------------------------------------------//
@@ -90,31 +89,39 @@ bool test_dcf(int n_times) {
             o0,      // output of FSS gate in party 0
             o1,      // output of FSS gate in party 1
             o;       // reconstructed output of DCF gate, should yield (x<alpha)
-    bool correct=true;
+    bool correct=true, res;
 
     // Allocate empty keys (k0, k1)
-    struct dcf_key k0={0}, k1={0};
+    struct ic_key k0={0}, k1={0};
     
     // Generate a random mask alpha
     alpha = random_dtype();
 
-    // Generate empty states (s0, s1). Alternatively, call DCF_gen() for automatic generation.
+    // Generate states (s0, s1). Alternatively, call DCF_gen() for automatic generation.
     uint8_t s0[S_LEN] = {0}, s1[S_LEN] = {0};
     random_buffer(s0, S_LEN);
     random_buffer(s1, S_LEN);
 
-    // Generate keys once
-    tic(); DCF_gen(alpha, &k0, &k1); t_gen += toc("DCF_gen");
-    
     // Test keys for multiple input values x
     for (int i=0; i<n_times; i++)
     {
-        x = random_dtype();  // generate a random input x
+        // Generate keys
+        tic(); DCF_gen(alpha, &k0, &k1); t_gen += toc("DCF_gen");
+
+        // generate a random input x
+        x = random_dtype();  
         
+        // Evaluate DCF gate
         tic(); o0 = DCF_eval(0, &k0, x); t_eval+= toc("DCF_eval(0)");
         tic(); o1 = DCF_eval(1, &k1, x); t_eval+= toc("DCF_eval(1)");
-        o = o0 + o1; 
-        correct &= ((unsigned)x<(unsigned)alpha) == (bool)o;
+        o = o0 + o1;
+
+        // Check if output is correct, print if not
+        res = ((unsigned)x<(unsigned)alpha) == (bool)o; correct &= res;
+        if (!res){
+            printf("x=%-10u | alpha=%-10u | o0=%-10u | o1=%-10u o0+o1=%-10u | "\
+               "(x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
+        }
         #if PRINTIT
         printf("x=%-10u | alpha=%-10u | o0=%-10u | o1=%-10u o0+o1=%-10u | "\
                "(x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
@@ -122,7 +129,7 @@ bool test_dcf(int n_times) {
     }
     printf("Test DCF fully correct: %s\n", correct ? "true" : "false");
     if (TIMEIT){
-        printf(" - Avg. time DCF_gen:   %-5.0f (ns)\n", t_gen);
+        printf(" - Avg. time DCF_gen:   %-5.0f (ns)\n", t_gen/(n_times));
         printf(" - Avg. time DCF_eval:  %-5.0f (ns)\n", t_eval/(n_times*2));
     }
     return correct;
@@ -136,28 +143,36 @@ bool test_ic(int n_times){
             o0,      // output of FSS gate in party 0
             o1,      // output of FSS gate in party 1
             o;       // reconstructed output of DCF gate, should yield (x<r_in)
-    bool correct=true;
+    bool correct=true, res;
 
     // Allocate empty keys (k0, k1)
     struct ic_key k0={0}, k1={0};
     
-    // Generate a random mask r_in
-    r_in = random_dtype();
+    // Set top and bottom values of the interval
+    DTYPE_t p = 0, q = (DTYPE_t)((1ULL<<(N_BITS-1))-1);
+    printf("p=%d, q=%d\n", p, q);
 
-    // Generate keys once
-    DTYPE_t p = (DTYPE_t)(1<<(N_BITS-1)), q = -1;
-    tic(); IC_gen(r_in, 0, p, q, &k0, &k1); t_gen += toc("IC_gen");
-    
-    // Test keys for multiple input values x
     for (int i=0; i<n_times; i++)
     {
-        x = random_dtype();  // generate a random input x
+        // Generate a random mask r_in and keys (k0, k1)
+        r_in = random_dtype();
+        tic(); IC_gen(r_in, 0, p, q, &k0, &k1); t_gen += toc("IC_gen");
+
+        // generate a random input x
+        x = random_dtype();
         
+        // Evaluate IC gate
         tic(); o0 = IC_eval(0, p, q, &k0, x+r_in); t_eval+= toc("IC_eval(0)");
         tic(); o1 = IC_eval(1, p, q, &k1, x+r_in); t_eval+= toc("IC_eval(1)");
         o = o0 + o1; 
-        correct &= ((p<=x)&(x<q)) == (bool)o;
 
+        // Check if the result is correct, print if not
+        res = ((p<=x)&(x<=q)) == (bool)o;   correct &= res;
+        if (!res){
+            printf("Wrong! x=%-12d | r_in=%-12d | o0+o1=%-5d | "\
+                    "(p<=x<q)=%-5d  |r_in|=%-12u   |x+r_in|=%-12u\n",
+                     x, r_in, o, ((p<=x)&(x<=q)), r_in, x+r_in);
+        }
         #if PRINTIT
         printf("x=%-12d | r_in=%-12d | o0+o1=%-5d | "\
                "(p<=x<q)=%-5d\n", x, r_in, o, ((p<=x)&(x<q)));
@@ -165,7 +180,7 @@ bool test_ic(int n_times){
     }
     printf("Test IC fully correct: %s\n", correct ? "true" : "false");
     if (TIMEIT){
-        printf(" - Avg. time IC_gen:   %-5.0f (ns)\n", t_gen);
+        printf(" - Avg. time IC_gen:   %-5.0f (ns)\n", t_gen/(n_times));
         printf(" - Avg. time IC_eval:  %-5.0f (ns)\n", t_eval/(n_times*2));
     }
     return correct;
