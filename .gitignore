@@ -1,5 +1,5 @@
 .ipynb_checkpoints
-
+*.egg-info
 build/
 ext/
 .vscode/
