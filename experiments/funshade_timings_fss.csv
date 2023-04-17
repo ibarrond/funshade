@@ -1,0 +1,25 @@
+Function,Time (ns),N_bits
+G_ni,162,8
+G_ni,162,16
+G_ni,162,32
+G_ni,202,64
+G_tiny,871,8
+G_tiny,871,16
+G_tiny,871,32
+G_tiny,1149,64
+DCF_gen,4306,8
+DCF_gen,6818,16
+DCF_gen,11521,32
+DCF_gen,26720,64
+DCF_eval,1207,8
+DCF_eval,2372,16
+DCF_eval,4700,32
+DCF_eval,11974,64
+IC_gen,4974,8
+IC_gen,7387,16
+IC_gen,12287,32
+IC_gen,28461,64
+IC_eval,2409,8
+IC_eval,4727,16
+IC_eval,9296,32
+IC_eval,23872,64

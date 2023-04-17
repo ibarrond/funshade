@@ -1,5 +1,7 @@
-
+.ipynb_checkpoints
 
 build/
 ext/
 .vscode/
+
+py/*.c

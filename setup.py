@@ -49,7 +49,7 @@ def re_sub_file(regex: str, replace: str, filename: str):
 V_README_REGEX = r'(?<=\* \*\*_Version_\*\*: )[0-9]+\.[0-9]+\.[0-9a-z]+'
 V_INIT_REGEX = r'(?<=__version__ = \")[0-9]+\.[0-9]+\.[0-9a-z]+(?=\")'
 re_sub_file(regex=V_README_REGEX, replace=VERSION, filename='README.md')
-re_sub_file(regex=V_INIT_REGEX, replace=VERSION, filename='Pyfhel/__init__.py')
+re_sub_file(regex=V_INIT_REGEX, replace=VERSION, filename='py/__init__.py')
 
 
 # -------------------------------- OPTIONS -------------------------------------
@@ -105,7 +105,7 @@ class SuperBuildExt(build_ext):
         #  We delay it for the setup to raise a nice error if numpy is not found.
         #  https://stackoverflow.com/questions/54117786
         import numpy
-        log.info("cimporting numpy version '%s'", numpy.__version__)
+        print("cimporting numpy version '%s'", numpy.__version__)
 
 
 
@@ -126,6 +126,12 @@ for ext_name, ext_conf in extensions.items():
     ext_modules.append(Extension(
         name            = ext_conf.pop('fullname', f"{project_name}.{ext_name}"),
         sources         =_npath(_pl(ext_conf.pop('sources', []))),
+        include_dirs    = include_dirs,
+        define_macros   = define_macros,
+        extra_compile_args = extra_compile_args,
+        extra_link_args = extra_link_args,
+        libraries       = libraries,
+        library_dirs    = library_dirs,
         language        = "c",
     ))
 
@@ -165,7 +171,6 @@ setup(
     version         = VERSION,
     author          = ', '.join([n['name'] for n in project_config['authors']]),
     author_email    = ', '.join([n['email'] for n in project_config['authors']]),
-    url             = project_config['urls']['documentation'],
     description     = project_config['description'],
     long_description= long_description,
     long_description_content_type="text/markdown",

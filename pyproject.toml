@@ -38,6 +38,7 @@ requires = [
   "wheel",
   "cython==3.0.0b1",
   "numpy>=1.21",
+  "toml>=0.10"
 ]
 
 #===============================================================================
@@ -45,7 +46,7 @@ requires = [
 #===============================================================================
 #----------------------------- CYTHON EXTENSIONS -------------------------------
 [extensions.config]   # Common compilation config for all extensions
-include_dirs = ['fss']
+include_dirs = ['c']
 define_macros = [
   ["NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"],
   ["__PYX_ENUM_CLASS_DECL", "enum"], # Support enums in cython
@@ -64,4 +65,4 @@ libraries = []  # libraries to link with, cpplibraries above are added by defaul
 # List of extensions to compile. Custom compilation config can be defined for each
 [extensions.Funshade]
 fullname='Funshade.Funshade'    
-sources=['funshade/funshade.pyx', 'fss/fss.cpp', 'fss/aes.c']
+sources=['py/funshade.pyx', 'c/fss.c', 'c/aes.c']
