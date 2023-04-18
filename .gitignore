@@ -4,4 +4,4 @@ build/
 ext/
 .vscode/
 
-py/*.c
+funshade/py/*.c

@@ -4,8 +4,8 @@ cimport numpy as np
 from libc.stdint cimport int64_t, int64_t, uint8_t
 
 
-cdef extern from "c/fss.h" nogil:
-    ctypedef int R_t
+cdef extern from "fss.h" nogil:
+    ctypedef int64_t R_t
     const size_t KEY_LEN
     const size_t SEED_LEN
 
@@ -22,11 +22,14 @@ cdef extern from "c/fss.h" nogil:
     R_t funshade_eval_sign_batch_collapse(size_t K, bint j, const uint8_t kj[],
         const R_t z_hat_0[], const R_t z_hat_1[])
 
-
-# build the corresponding numpy dtype for R_t (ring type)
-cdef R_t tmp
-DTYPE = np.asarray(<R_t[:1]>(&tmp)).dtype
-
+# build the corresponding numpy type for R_t (ring type)
+cdef R_t tmp = 42
+DTYPE = {
+    (1, True): np.uint8,  (1, False): np.int8,
+    (2, True): np.uint16, (2, False): np.int16, 
+    (4, True): np.uint32, (4, False): np.int32, 
+    (8, True): np.uint64, (8, False): np.int64, 
+}[(sizeof(tmp), (tmp>0)&(~tmp>=0))]
 
 #------------------------------------------------------------------------------#
 def setup( size_t K, size_t l, R_t theta):
@@ -50,9 +53,9 @@ def setup( size_t K, size_t l, R_t theta):
         d_xy0 = np.empty((K*l), DTYPE), d_xy1 = np.empty((K*l), DTYPE),\
         r_in0 = np.empty((K),   DTYPE), r_in1 = np.empty((K),   DTYPE)
         
-    cdef np.ndarray[uint8_t, ndim=1] k0 = np.empty((K), np.uint8), k1 = np.empty((K), np.uint8)
+    cdef np.ndarray[uint8_t, ndim=1] k0 = np.empty((K*KEY_LEN), np.uint8), k1 = np.empty((K*KEY_LEN), np.uint8)
     
-    funshade_setup_batch(K, l, theta, 
+    funshade_setup_batch(K, l, theta,
            &d_x0[0], &d_x1[0], &d_y0[0], &d_y1[0], &d_xy0[0], &d_xy1[0], &r_in0[0], &r_in1[0], &k0[0], &k1[0])
     return d_x0, d_x1, d_y0, d_y1, d_xy0, d_xy1, r_in0, r_in1, k0, k1
 
@@ -68,6 +71,9 @@ def share(size_t K, size_t l, R_t[::1] v, R_t[::1] d_v):
     Returns:
         D_v (np.ndarray): Delta share of v.
     """
+     # Check size to avoid segfaults
+    assert v.shape[0]==d_v.shape[0]==<Py_ssize_t>(K*l),\
+        "<Funshade error> Input vector v and delta shares must be of length %d (K*l)".format(K*l)
     cdef np.ndarray[R_t, ndim=1] D_v = np.empty((K*l), DTYPE)
     funshade_share_batch(K, l, &v[0], &d_v[0], &D_v[0])
     return D_v
@@ -90,6 +96,10 @@ def eval_dist(size_t K, size_t l, bint j, R_t[::1] r_in_j, R_t[::1] D_x, R_t[::1
     Returns:
         z_hat_j (np.ndarray): shares of the distance function evaluation result.
     """
+     # Check array size to avoid segfaults
+    assert D_x.shape[0]==D_y.shape[0]==d_xj.shape[0]==d_yj.shape[0]==d_xyj.shape[0]==<Py_ssize_t>(K*l),\
+        "<Funshade error> All delta shares must be of length %d (K*l)".format(K*l)
+    assert r_in_j.shape[0]==<Py_ssize_t>(K), "<Funshade error> All r_in masks must be of length %d (K)".format(K)
     cdef np.ndarray[R_t, ndim=1] z_hat_j = np.empty((K), DTYPE)
     funshade_eval_dist_batch(K, l, j, &r_in_j[0], &D_x[0], &D_y[0], &d_xj[0], &d_yj[0], &d_xyj[0], &z_hat_j[0])
     return z_hat_j
@@ -107,6 +117,10 @@ def eval_sign(size_t K, bint j, uint8_t[::1] k_j, R_t[::1] z_hat_0, R_t[::1] z_h
     Returns:
         o_j (np.ndarray): shares of the sign function evaluation result.
     """
+    assert z_hat_0.shape[0]==z_hat_1.shape[0]==<Py_ssize_t>(K), \
+        "<Funshade error> z_hat shares must be of length %d (K)".format(K)
+    assert k_j.shape[0]==<Py_ssize_t>(K*KEY_LEN), \
+        "<Funshade error> FSS keys k_j must be of length %d (K*KEY_LEN)".format(K*KEY_LEN)
     cdef np.ndarray[R_t, ndim=1] o_j = np.empty((K), DTYPE)
     funshade_eval_sign_batch(K, j, &k_j[0], &z_hat_0[0], &z_hat_1[0], &o_j[0])
     return o_j
@@ -126,4 +140,8 @@ def eval_sign_collapse(size_t K, bint j, uint8_t[::1] k_j, R_t[::1] z_hat_0, R_t
     Returns:
         o_j (np.ndarray): shares of the sign function evaluation result.
     """
+    assert z_hat_0.shape[0]==z_hat_1.shape[0]==<Py_ssize_t>(K), \
+        "<Funshade error> z_hat shares must be of length %d (K)".format(K)
+    assert k_j.shape[0]==<Py_ssize_t>(K*KEY_LEN), \
+        "<Funshade error> FSS keys k_j must be of length %d (K*KEY_LEN)".format(K*KEY_LEN)
     return funshade_eval_sign_batch_collapse(K, j, &k_j[0], &z_hat_0[0], &z_hat_1[0])

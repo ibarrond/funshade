@@ -358,7 +358,7 @@ void funshade_eval_sign_batch(size_t K, bool j, const uint8_t k_j[], const R_t z
     #pragma omp parallel for 
     for (size_t k=0; k<K; k++)
     {
-        o_j += SIGN_eval(j, &k_j[k*KEY_LEN], z_hat_0[k]+z_hat_1[k]);
+        o_j[k]= SIGN_eval(j, &k_j[k*KEY_LEN], z_hat_0[k]+z_hat_1[k]);
     }
 }
 

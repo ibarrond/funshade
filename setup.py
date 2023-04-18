@@ -49,7 +49,7 @@ def re_sub_file(regex: str, replace: str, filename: str):
 V_README_REGEX = r'(?<=\* \*\*_Version_\*\*: )[0-9]+\.[0-9]+\.[0-9a-z]+'
 V_INIT_REGEX = r'(?<=__version__ = \")[0-9]+\.[0-9]+\.[0-9a-z]+(?=\")'
 re_sub_file(regex=V_README_REGEX, replace=VERSION, filename='README.md')
-re_sub_file(regex=V_INIT_REGEX, replace=VERSION, filename='py/__init__.py')
+re_sub_file(regex=V_INIT_REGEX, replace=VERSION, filename=Path('funshade/py/__init__.py'))
 
 
 # -------------------------------- OPTIONS -------------------------------------
