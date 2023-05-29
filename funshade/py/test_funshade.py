@@ -96,5 +96,6 @@ z_exper  = (BP.z_hat_j+Gate.z_hat_j) - (BP.r_in_j+Gate.r_in_j) # Experimental re
 assert np.allclose(z_ground, z_exper)
 
 # Check the final result
-o_ground = (x_float@Y_float.T > theta)                                 # Ground truth
+o_ground = (x_float@Y_float.T > theta)                         # Ground truth
 assert np.allclose(o_ground, o)
+print("Funshade executed correctly")

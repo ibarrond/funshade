@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.14) # setting this is required
-project(funshade)                    # this sets the project name
+cmake_minimum_required(VERSION 3.14)
+project(funshade)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_BUILD_TYPE Debug)
