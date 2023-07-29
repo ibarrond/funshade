@@ -1,6 +1,4 @@
 """This file installs Pyfhel in your Python3 distribution.
-# Use one of the two:
-#   > python3 setup.py install
 #   > python3 -m pip install .
 # PYPI -> https://packaging.python.org/tutorials/packaging-projects/
 #   > python3 setup.py sdist

@@ -204,8 +204,9 @@ void MP_owf_aes128_tiny(
   const uint8_t msg_in[AES_BLOCKLEN],
   uint8_t msg_out[AES_BLOCKLEN])
 {
+    size_t j;
     aes128_tiny_enc_ecb(key_in,msg_in,msg_out);      // AES-128
-    for (size_t j = 0; j < AES_BLOCKLEN; j++) {      // XOR3
+    for (j = 0; j < AES_BLOCKLEN; j++) {             // XOR3
         msg_out[j] = key_in[j] ^ msg_in[j] ^ msg_out[j];
     }
 }
@@ -215,8 +216,9 @@ void MP_owf_aes128_ni(
   const uint8_t msg_in[AES_BLOCKLEN],
   uint8_t msg_out[AES_BLOCKLEN])
 {
+    size_t j;
     aes128_ni_enc_ecb(key_in,msg_in,msg_out);       // AES-128
-    for (size_t j = 0; j < AES_BLOCKLEN; j++) {     // XOR3
+    for (j = 0; j < AES_BLOCKLEN; j++) {            // XOR3
         msg_out[j] = key_in[j] ^ msg_in[j] ^ msg_out[j];
     }
 }
@@ -225,24 +227,26 @@ void MP_owf_aes128_ni(
 
 void G_tiny(const uint8_t buffer_in[], uint8_t buffer_out[],
            size_t buffer_in_size, size_t buffer_out_size){
+    size_t i;
     assertm(buffer_in_size==AES_BLOCKLEN, "buffer_in must be of 16 bytes (128 bits)");
     assertm(buffer_out_size%AES_BLOCKLEN==0, "buffer_out must be a multiple of 16 bytes");
     // Process first block with IV as key
     MP_owf_aes128_tiny(iv_aes_128, buffer_in, buffer_out);
     // Process remaining blocks, using previous block as key
-    for (size_t i = AES_BLOCKLEN; i < buffer_out_size; i+=AES_BLOCKLEN){
+    for (i = AES_BLOCKLEN; i < buffer_out_size; i+=AES_BLOCKLEN){
         MP_owf_aes128_tiny(&buffer_out[i-AES_BLOCKLEN],buffer_in,&buffer_out[i]);
     }
 }
 #ifdef __AES__
 void G_ni(const uint8_t buffer_in[], uint8_t buffer_out[],
            size_t buffer_in_size, size_t buffer_out_size){
+    size_t i;
     assertm(buffer_in_size==AES_BLOCKLEN, "buffer_in must be of 16 bytes (128 bits)");
     assertm(buffer_out_size%AES_BLOCKLEN==0, "buffer_out must be a multiple of 16 bytes");
     // Process first block with IV as key
     MP_owf_aes128_ni(iv_aes_128, buffer_in, buffer_out);
     // Process remaining blocks, using previous block as key
-    for (size_t i = AES_BLOCKLEN; i < buffer_out_size; i+=AES_BLOCKLEN){
+    for (i = AES_BLOCKLEN; i < buffer_out_size; i+=AES_BLOCKLEN){
         MP_owf_aes128_ni(&buffer_out[i-AES_BLOCKLEN], buffer_in, &buffer_out[i]);
     }
 }

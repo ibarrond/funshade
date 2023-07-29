@@ -37,9 +37,6 @@
 //  -NI-
 #define AES_128_key_exp(k, rcon) aes_128_key_expansion(k, _mm_aeskeygenassist_si128(k, rcon))
 
-// Initialization Vector, can be set to arbitrary 16 bytes.
-const uint8_t iv_aes_128[AES_BLOCKLEN];
-
 //----------------------------------------------------------------------------//
 //--------------------------------- PUBLIC -----------------------------------//
 //----------------------------------------------------------------------------//

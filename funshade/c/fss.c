@@ -2,15 +2,17 @@
 
 // ---------------------------- HELPER FUNCTIONS ---------------------------- //
 void xor(const uint8_t *a, const uint8_t *b, uint8_t *res, size_t s_len){
-    for (size_t i = 0; i < s_len; i++)
+    size_t i;
+    for (i = 0; i < s_len; i++)
     {
         res[i] = a[i] ^ b[i];
     }
 }
 void bit_decomposition(R_t value, bool *bits_array){
-    for (size_t i = 0; i < N_BITS; i++)
+    size_t i;
+    for (i = 0; i < N_BITS; i++)
     {
-        bits_array[i] = value & (1<<(N_BITS-i-1));
+        bits_array[i] = value & (1ULL<<(N_BITS-i-1));
     }
 }
 void xor_cond(const uint8_t *a, const uint8_t *b, uint8_t *res, size_t len, bool cond){
@@ -54,8 +56,16 @@ void random_buffer_seeded(uint8_t buffer[], size_t buffer_len, const uint8_t see
             randombytes_buf_deterministic(buffer, buffer_len, seed);
         }
     #else               // Use insecure random number generation
-        srand((unsigned int)time(NULL));        // Initialize random seed
-        for (size_t i = 0; i < buffer_len; i++){
+        if (seed == NULL)
+        {
+            srand((unsigned int)time(NULL));        // Initialize random seed
+        }
+        else
+        {
+            srand(*((unsigned int*)seed));        // Initialize seeded
+        }
+        size_t i;
+        for (i = 0; i < buffer_len; i++){
             buffer[i] = rand() % 256;
         }
     #endif
@@ -85,7 +95,8 @@ R_t random_dtype_seeded(const uint8_t seed[SEED_LEN]){
         {
             srand((unsigned int)time(NULL));        // Initialize random seed
         }
-        for (size_t i = 0; i < sizeof(R_t); i++){
+        size_t i;
+        for (i = 0; i < sizeof(R_t); i++){
             value = (R_t)rand();
         }
     #endif
@@ -109,6 +120,7 @@ void DCF_gen_seeded(R_t alpha, uint8_t k0[KEY_LEN], uint8_t k1[KEY_LEN], uint8_t
     uint8_t s_cw[S_LEN] = {0};
     R_t V_cw, V_alpha=0;    bool t0=0, t1=1;                                    // L3
     bool t_cw_L, t_cw_R, t0_L, t0_R, t1_L, t1_R;
+    size_t i;
 
     // Decompose alpha into an array of bits                                    // L1
     bool alpha_bits[N_BITS] = {0};
@@ -129,7 +141,7 @@ void DCF_gen_seeded(R_t alpha, uint8_t k0[KEY_LEN], uint8_t k1[KEY_LEN], uint8_t
     memcpy(&k1[S_PTR], s1_i, S_LEN);
     
     // Main loop
-    for (size_t i = 0; i < N_BITS; i++)                                         // L4
+    for (i = 0; i < N_BITS; i++)                                         // L4
     {
         #ifdef __AES__
             G_ni(s0_i, g_out_0, G_IN_LEN, G_OUT_LEN);                           // L5
@@ -188,13 +200,14 @@ void DCF_gen(R_t alpha, uint8_t k0[KEY_LEN], uint8_t k1[KEY_LEN]){
 R_t DCF_eval(bool b, const uint8_t kb[KEY_LEN], R_t x_hat){
     R_t V = 0;     bool t = b, x_bits[N_BITS];                                  // L1
     uint8_t s[S_LEN], g_out[G_OUT_LEN];     
+    size_t i;
     // Copy the initial state to avoid modifying the original key
     memcpy(s, &kb[S_PTR], S_LEN);
     // Decompose x into an array of bits
     bit_decomposition(x_hat, x_bits);
 
     // Main loop
-    for (size_t i = 0; i < N_BITS; i++)                                         // L2
+    for (i = 0; i < N_BITS; i++)                                         // L2
     {
         #ifdef __AES__
             G_ni(s, g_out, G_IN_LEN, G_OUT_LEN);                                // L4
@@ -247,8 +260,27 @@ R_t IC_eval(bool b, R_t p, R_t q, const uint8_t kb_ic[KEY_LEN], R_t x_hat){
 void SIGN_gen(R_t r_in, R_t r_out, uint8_t k0[KEY_LEN], uint8_t k1[KEY_LEN]){
     IC_gen(r_in, r_out, 0, (R_t)((1ULL<<(N_BITS-1))-1), k0, k1);
 }
+void SIGN_gen_batch(size_t K, R_t theta, R_t r_in_0[], R_t r_in_1[], uint8_t k0[], uint8_t k1[]){
+    size_t k;
+
+    // Generate masks
+    random_buffer((uint8_t*)r_in_0, K*sizeof(R_t));
+    random_buffer((uint8_t*)r_in_1, K*sizeof(R_t));
+    for (k=0; k<K; k++)
+    {
+        SIGN_gen(r_in_0[k]+r_in_1[k], 0, &k0[k*KEY_LEN], &k1[k*KEY_LEN]);
+        r_in_1[k] -= theta;
+    }
+}
 R_t SIGN_eval(bool b, const uint8_t kb[KEY_LEN], R_t x_hat){
     return IC_eval(b, 0, (R_t)((1ULL<<(N_BITS-1))-1), kb, x_hat);
+}
+void SIGN_eval_batch(size_t K, bool b, const uint8_t kb[], const R_t x_hat[], R_t ob[]){
+    size_t k;
+    for (k=0; k<K; k++)
+    {
+        ob[k] = SIGN_eval(b, &kb[k*KEY_LEN], x_hat[k]);
+    }
 }
 
 
@@ -260,11 +292,12 @@ R_t SIGN_eval(bool b, const uint8_t kb[KEY_LEN], R_t x_hat){
 void funshade_setup(size_t l, R_t theta, R_t r_in[2], R_t d_x0[], R_t d_x1[],
     R_t d_y0[], R_t d_y1[], R_t d_xy0[], R_t d_xy1[], uint8_t k0[KEY_LEN], uint8_t k1[KEY_LEN])
 {
+    size_t i;
     // Generate randomness for scalar product
     random_buffer((uint8_t*)d_x0, l*sizeof(R_t)); random_buffer((uint8_t*)d_x1, l*sizeof(R_t));
     random_buffer((uint8_t*)d_y0, l*sizeof(R_t)); random_buffer((uint8_t*)d_y1, l*sizeof(R_t));
     random_buffer((uint8_t*)d_xy0, l*sizeof(R_t));random_buffer((uint8_t*)r_in, 2*sizeof(R_t));
-    for (size_t i=0; i<l; i++)
+    for (i=0; i<l; i++)
     {
         d_xy1[i] = (d_x0[i]+d_x1[i]) * (d_y0[i]+d_y1[i]) - d_xy0[i];
     }
@@ -277,7 +310,8 @@ void funshade_setup(size_t l, R_t theta, R_t r_in[2], R_t d_x0[], R_t d_x1[],
 
 void funshade_share(size_t l, const R_t v[], const R_t d_v[], R_t D_v[])
 {
-    for (size_t i=0; i<l; i++)
+    size_t i;
+    for (i=0; i<l; i++)
     {
         D_v[i] = d_v[i] + v[i];
     }
@@ -287,8 +321,9 @@ void funshade_share(size_t l, const R_t v[], const R_t d_v[], R_t D_v[])
 R_t funshade_eval_dist(size_t l, bool j, R_t r_in_j,
     const R_t D_x[], const R_t D_y[], const R_t d_xj[], const R_t d_yj[], const R_t d_xyj[])
 {
+    size_t i;
     R_t z_hat_j = r_in_j;
-    for (size_t i=0; i<l; i++)
+    for (i=0; i<l; i++)
     {
         z_hat_j += j*(D_x[i]*D_y[i]) - (D_x[i]*d_yj[i]) - (D_y[i]*d_xj[i]) + d_xyj[i];
     }
@@ -310,7 +345,9 @@ void funshade_setup_batch(size_t K, size_t l, R_t theta,
     random_buffer((uint8_t*)d_x0, K*l*sizeof(R_t)); random_buffer((uint8_t*)d_x1, K*l*sizeof(R_t));
     random_buffer((uint8_t*)d_y0, K*l*sizeof(R_t)); random_buffer((uint8_t*)d_y1, K*l*sizeof(R_t));
     random_buffer((uint8_t*)d_xy0, K*l*sizeof(R_t));
+#if defined(_OPENMP)
     #pragma omp parallel for
+#endif
     for (idx=0; idx<(K*l); idx++)
     {
         d_xy1[idx] = (d_x0[idx]+d_x1[idx]) * (d_y0[idx]+d_y1[idx]) - d_xy0[idx];
@@ -318,7 +355,9 @@ void funshade_setup_batch(size_t K, size_t l, R_t theta,
     // Generate masks and fss keys
     random_buffer((uint8_t*)r_in_0, K*sizeof(R_t));
     random_buffer((uint8_t*)r_in_1, K*sizeof(R_t));
+#if defined(_OPENMP)
     #pragma omp parallel for
+#endif
     for (k=0; k<K; k+=1)
     {
         SIGN_gen(r_in_0[k]+r_in_1[k], 0, &k0[k*KEY_LEN], &k1[k*KEY_LEN]);
@@ -330,8 +369,12 @@ void funshade_setup_batch(size_t K, size_t l, R_t theta,
 void funshade_share_batch(size_t K, size_t l, const R_t v[], const R_t d_v[],
     R_t D_v[])
 {
+    size_t idx;
+
+#if defined(_OPENMP)
     #pragma omp parallel for
-    for (size_t idx=0; idx<K*l; idx++)
+#endif
+    for (idx=0; idx<K*l; idx++)
     {
         D_v[idx] = d_v[idx] + v[idx];
     }
@@ -341,13 +384,16 @@ void funshade_eval_dist_batch(size_t K, size_t l, bool j, const R_t r_in_j[],
     const R_t D_x[], const R_t D_y[], const R_t d_xj[], const R_t d_yj[],
     const R_t d_xyj[], R_t z_hat_j[])
 {
+    size_t k,i,idx;
     memcpy(z_hat_j, r_in_j, K*sizeof(R_t));
+#if defined(_OPENMP)
     #pragma omp parallel for
-    for (size_t k=0; k<K; k++)
+#endif
+    for (k=0; k<K; k++)
     {
-        for (size_t i=0; i<l; i++)
+        for (i=0; i<l; i++)
         {
-            size_t idx = k*l + i;
+            idx = k*l + i;
             z_hat_j[k] += j*(D_x[idx]*D_y[idx]) - (D_x[idx]*d_yj[idx]) - (D_y[idx]*d_xj[idx]) + d_xyj[idx];
         }
     }
@@ -355,8 +401,11 @@ void funshade_eval_dist_batch(size_t K, size_t l, bool j, const R_t r_in_j[],
 
 void funshade_eval_sign_batch(size_t K, bool j, const uint8_t k_j[], const R_t z_hat_0[], const R_t z_hat_1[], R_t o_j[])
 {
-    #pragma omp parallel for 
-    for (size_t k=0; k<K; k++)
+    size_t k;
+#if defined(_OPENMP)
+    #pragma omp parallel for
+#endif
+    for (k=0; k<K; k++)
     {
         o_j[k]= SIGN_eval(j, &k_j[k*KEY_LEN], z_hat_0[k]+z_hat_1[k]);
     }
@@ -365,8 +414,11 @@ void funshade_eval_sign_batch(size_t K, bool j, const uint8_t k_j[], const R_t z
 R_t funshade_eval_sign_batch_collapse(size_t K, bool j, const uint8_t k_j[], const R_t z_hat_0[], const R_t z_hat_1[])
 {
     R_t o_j = 0;
-    #pragma omp parallel for 
-    for (size_t k=0; k<K; k++)
+    size_t k;
+#if defined(_OPENMP)
+    #pragma omp parallel for
+#endif
+    for (k=0; k<K; k++)
     {
         o_j += SIGN_eval(j, &k_j[k*KEY_LEN], z_hat_0[k]+z_hat_1[k]);
     }

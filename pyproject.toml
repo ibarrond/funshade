@@ -3,7 +3,7 @@
 #===============================================================================
 [project]
 name = "Funshade"
-version = "1.0.1"
+version = "1.0.2"
 description = "Function Secret Sharing for Multiparty Computation"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -50,19 +50,18 @@ include_dirs = ['funshade/c']
 define_macros = [
   ["NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"],
   ["__PYX_ENUM_CLASS_DECL", "enum"], # Support enums in cython
-  ["USE_LIBSODIUM", "1"]
 ]
 extra_compile_args = [
-  {Windows = ["/O2","/openmp","/std:c++17"]},
-  {Darwin = ["-O3", "-fopenmp","-msse", "-msse2", "-maes", "-march=native"]},
-  {Linux = ["-O3", "-fopenmp","-msse", "-msse2", "-maes", "-march=native"]},
+  {Windows = ["/O2",]},
+  {Darwin = ["-O3","-msse", "-msse2", "-maes", "-march=native"]},
+  {Linux = ["-O3","-msse", "-msse2", "-maes", "-march=native"]},
 ]
 extra_link_args = [
   {Windows = []},
-  {Darwin = ["-fopenmp"]},
-  {Linux = ["-fopenmp"]},
+  {Darwin = []},
+  {Linux = []},
 ]
-libraries = ['sodium']  # libraries to link with, cpplibraries above are added by default
+# libraries = ['sodium']  # libraries to link with, cpplibraries above are added by default
 
 # List of extensions to compile. Custom compilation config can be defined for each
 [extensions.funshade]

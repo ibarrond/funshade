@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.14)
 project(funshade)
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_C_STANDARD 90)
 
 ###############################################################################
 ## target definitions #########################################################
 ###############################################################################
 
 add_compile_options(-O3 -msse -msse2 -maes -march=native -Wall -Wextra)
-add_compile_definitions(USE_LIBSODIUM) # Use libsodium for cryptographically secure RNG
+# add_compile_definitions(USE_LIBSODIUM) # Use libsodium for cryptographically secure RNG
 # add_compile_definitions(USE_PARALLEL)  # Use OpenMP for parallelization
 include_directories(.)
 link_libraries(sodium)

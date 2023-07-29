@@ -2,6 +2,7 @@ import numpy as np
 cimport numpy as np
 
 from libc.stdint cimport int64_t, int64_t, uint8_t
+from libcpp cimport bool
 
 
 cdef extern from "fss.h" nogil:
@@ -22,6 +23,10 @@ cdef extern from "fss.h" nogil:
     R_t funshade_eval_sign_batch_collapse(size_t K, bint j, const uint8_t kj[],
         const R_t z_hat_0[], const R_t z_hat_1[])
 
+    ## FSS (batch evaulation)
+    void SIGN_gen_batch(size_t K, R_t theta, R_t r_in_0[], R_t r_in_1[], uint8_t k0[], uint8_t k1[])
+    void SIGN_eval_batch(size_t K, bool b, const uint8_t kb[], const R_t x_hat[], R_t ob[])
+
 # build the corresponding numpy type for R_t (ring type)
 cdef R_t tmp = 42
 DTYPE = {
@@ -31,8 +36,8 @@ DTYPE = {
     (8, True): np.uint64, (8, False): np.int64, 
 }[(sizeof(tmp), (tmp>0)&(~tmp>=0))]
 
-#------------------------------------------------------------------------------#
-def setup( size_t K, size_t l, R_t theta):
+#--------------------------------- FUNSHADE -----------------------------------#
+def setup(size_t K, size_t l, R_t theta):
     """Setup for the FunShade protocol.
     
     Generates the beaver triples, input masks and function keys.
@@ -145,3 +150,42 @@ def eval_sign_collapse(size_t K, bint j, uint8_t[::1] k_j, R_t[::1] z_hat_0, R_t
     assert k_j.shape[0]==<Py_ssize_t>(K*KEY_LEN), \
         "<Funshade error> FSS keys k_j must be of length %d (K*KEY_LEN)".format(K*KEY_LEN)
     return funshade_eval_sign_batch_collapse(K, j, &k_j[0], &z_hat_0[0], &z_hat_1[0])
+
+#--------------------------------- FSS GATE -----------------------------------#
+def FssGenSign(size_t K, R_t theta):
+    """FssGenSign generates locally the input masks and the function keys for 2PC sign evaluation in semi-honest setting.
+    
+    Generates the FSS input masks and FSS keys.
+
+    Args:
+        K (int): Number of input values vectors.
+        theta (int): Upscaled threshold.
+    
+    Returns:
+        r_in0, r_in1 (np.ndarray): shares of the input masks.
+        k0, k1 (np.ndarray): function keys.
+    """
+    cdef np.ndarray[R_t, ndim=1] r_in0 = np.empty((K), DTYPE), r_in1 = np.empty((K), DTYPE)
+    cdef np.ndarray[uint8_t, ndim=1] k0 = np.empty((K*KEY_LEN), np.uint8), k1 = np.empty((K*KEY_LEN), np.uint8)
+    SIGN_gen_batch(K, theta, &r_in0[0], &r_in1[0], &k0[0], &k1[0])
+    return r_in0, r_in1, k0, k1
+
+def FssEvalSign(size_t K, bool j, uint8_t[::1] k_j, R_t[::1] x_hat):
+    """FssEvalSign evaluates the sign function in semi-honest setting.
+
+    Args:
+        K (int): Number of input values.
+        j (bool): Party index (0 or 1)
+        k_j (np.ndarray): Function key shares.
+        x_hat (np.ndarray): masked input values.
+
+    Returns:
+        o_j (np.ndarray): shares of the sign function evaluation result.
+    """
+    assert x_hat.shape[0]==<Py_ssize_t>(K), \
+        "<FssEvalSign error> x_hat shares must be of length %d (K)".format(K)
+    assert k_j.shape[0]==<Py_ssize_t>(K*KEY_LEN), \
+        "<FssEvalSign error> FSS keys k_j must be of length %d (K*KEY_LEN)".format(K*KEY_LEN)
+    cdef np.ndarray[R_t, ndim=1] o_j = np.empty((K), DTYPE)
+    SIGN_eval_batch(K, j, &k_j[0], &x_hat[0], &o_j[0])
+    return o_j

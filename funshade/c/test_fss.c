@@ -2,9 +2,11 @@
 //----------------------------------------------------------------------------//
 //------------------------  CONFIGURABLE PARAMETERS --------------------------//
 //----------------------------------------------------------------------------//
-#define TIMEIT  1 // set to 1 to time the functions
-#define PRINTIT 0 // set to 1 to print additional info
-#define N_REPETITIONS 10000
+#define TIMEIT  1           // set to 1 to time the functions
+#define PRINTIT 0           // set to 1 to print additional info
+#define N_REPETITIONS 10    // number of repetitions for each test
+#define N_REF_DB 5000       // (K) number of embeddings in the reference database 
+#define EMBEDDING_LEN 512   // (l) Typically in {128, 256, 512} for face recog.
 
 //----------------------------------------------------------------------------//
 // DEPENDENCIES
@@ -38,8 +40,9 @@ double toc(){
     return 0;
 }
 void print_buffer(const uint8_t *buffer, size_t size){
+    size_t i;
     printf("0x");
-    for (size_t i = 0; i < size; i++){
+    for (i = 0; i < size; i++){
         printf("%02x, ", buffer[i]);
     }
 }
@@ -50,9 +53,10 @@ void print_buffer(const uint8_t *buffer, size_t size){
 bool test_aes(int n_times) {
     uint8_t plain[G_IN_LEN]={0}, hash_ni[G_OUT_LEN]={0}, hash_sa[G_OUT_LEN]={0};
     double t_ni=0, t_sa=0;
+    int i;
     bool correct = true;
 
-    for(int i=0; i<n_times; i++){
+    for(i=0; i<n_times; i++){
         // Generate random input
         random_buffer(plain, G_IN_LEN);
 
@@ -60,18 +64,8 @@ bool test_aes(int n_times) {
         tic();  G_ni  (plain, hash_ni, G_IN_LEN, G_OUT_LEN); t_ni+= toc();
         tic();  G_tiny(plain, hash_sa, G_IN_LEN, G_OUT_LEN); t_sa+= toc();
 
-        // Print both hashes
-        #if PRINTIT
-        print_buffer("hash_ni", hash_ni, sizeof(hash_ni));
-        print_buffer("hash_sa", hash_sa, sizeof(hash_sa));
-        #endif
-
         // check if both hashes are equal with memcmp
         correct &= (memcmp(hash_ni, hash_sa, sizeof(hash_ni)) == 0);
-        #if PRINTIT
-        if (correct){printf("Hashes are equal. \n");}
-        else        {printf("Hashes are not equal. \n");}
-        #endif
     }
     printf("Test AES fully correct: %s\n", correct ? "true" : "false");
     if (TIMEIT){
@@ -90,7 +84,8 @@ bool test_dcf(int n_times) {
             o1,      // output of FSS gate in party 1
             o;       // reconstructed output of DCF gate, should yield (x<alpha)
     bool correct=true, res;
-
+    int i;
+    
     // Allocate empty keys (k0, k1)
     uint8_t k0[KEY_LEN]={0}, k1[KEY_LEN]={0};
     
@@ -103,7 +98,7 @@ bool test_dcf(int n_times) {
     random_buffer(s1, S_LEN);
 
     // Test keys for multiple input values x
-    for (int i=0; i<n_times; i++)
+    for (i=0; i<n_times; i++)
     {
         // Generate keys
         tic(); DCF_gen(alpha, k0, k1); t_gen += toc();
@@ -116,16 +111,8 @@ bool test_dcf(int n_times) {
         tic(); o1 = DCF_eval(1, k1, x); t_eval+= toc();
         o = o0 + o1;
 
-        // Check if output is correct, print if not
+        // Check if output is correct
         res = ((unsigned)x<(unsigned)alpha) == (bool)o; correct &= res;
-        if (!res){
-            printf("x=%-10u | alpha=%-10u | o0=%-10u | o1=%-10u o0+o1=%-10u | "\
-               "(x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
-        }
-        #if PRINTIT
-        printf("x=%-10u | alpha=%-10u | o0=%-10u | o1=%-10u o0+o1=%-10u | "\
-               "(x<alpha)=%-10u\n", x, alpha, o0, o1, o, (x<alpha));
-        #endif
     }
     printf("Test DCF fully correct: %s\n", correct ? "true" : "false");
     if (TIMEIT){
@@ -144,15 +131,15 @@ bool test_ic(int n_times){
             o1,      // output of FSS gate in party 1
             o;       // reconstructed output of DCF gate, should yield (x<r_in)
     bool correct=true, res;
+    int i;
 
     // Allocate empty keys (k0, k1)
     uint8_t k0[KEY_LEN]={0}, k1[KEY_LEN]={0};
     
     // Set top and bottom values of the interval
     R_t p = 0, q = (R_t)((1ULL<<(N_BITS-1))-1);
-    printf("p=%d, q=%d\n", p, q);
 
-    for (int i=0; i<n_times; i++)
+    for (i=0; i<n_times; i++)
     {
         // Generate a random mask r_in and keys (k0, k1)
         r_in = random_dtype();
@@ -166,17 +153,8 @@ bool test_ic(int n_times){
         tic(); o1 = IC_eval(1, p, q, k1, x+r_in); t_eval+= toc();
         o = o0 + o1; 
 
-        // Check if the result is correct, print if not
+        // Check if the result is correct
         res = ((p<=x)&(x<=q)) == (bool)o;   correct &= res;
-        if (!res){
-            printf("Wrong! x=%-12d | r_in=%-12d | o0+o1=%-5d | "\
-                    "(p<=x<q)=%-5d  |r_in|=%-12u   |x+r_in|=%-12u\n",
-                     x, r_in, o, ((p<=x)&(x<=q)), r_in, x+r_in);
-        }
-        #if PRINTIT
-        printf("x=%-12d | r_in=%-12d | o0+o1=%-5d | "\
-               "(p<=x<q)=%-5d\n", x, r_in, o, ((p<=x)&(x<q)));
-        #endif
     }
     printf("Test IC fully correct: %s\n", correct ? "true" : "false");
     if (TIMEIT){ 
@@ -204,12 +182,13 @@ bool test_funshade(size_t n_times, size_t l){
             o0, o1, o,                  // output of SIGN gate, should yield (z>=theta)
             theta;                      // threshold
     bool correct=true, res;
+    size_t i, idx; 
 
-    for (size_t i=0; i<n_times; i++)
+    for (i=0; i<n_times; i++)
     {
         // Generate random inputs
         z = 0;
-        for (size_t idx=0; idx<l; idx++){
+        for (idx=0; idx<l; idx++){
             x[idx] = random_dtype()/(2*l);
             y[idx] = random_dtype()/(2*l);
             z += x[idx]*y[idx];
@@ -219,7 +198,7 @@ bool test_funshade(size_t n_times, size_t l){
 
         // Generate correlated randomness, input mask and fss keys
         tic(); funshade_setup(l, theta, r_in, d_x0, d_x1, d_y0, d_y1, d_xy0, d_xy1, k0, k1); t_setup += toc();
-        for (size_t idx=0; idx<l; idx++){
+        for (idx=0; idx<l; idx++){
             d_x[idx] = d_x0[idx] + d_x1[idx];
             d_y[idx] = d_y0[idx] + d_y1[idx];
         }
@@ -233,34 +212,22 @@ bool test_funshade(size_t n_times, size_t l){
         tic(); z_hat_1 = funshade_eval_dist(l, 1, r_in[1], D_x, D_y, d_x1, d_y1, d_xy1); t_eval_sp+= toc();
         z_hat = z_hat_0 + z_hat_1;
         
-        tic(); o0 = funshade_eval_sign(0, k0, z_hat_0 + z_hat_1); t_eval_sign+= toc();
-        tic(); o1 = funshade_eval_sign(1, k1, z_hat_0 + z_hat_1); t_eval_sign+= toc();
+        tic(); o0 = funshade_eval_sign(0, k0, z_hat); t_eval_sign+= toc();
+        tic(); o1 = funshade_eval_sign(1, k1, z_hat); t_eval_sign+= toc();
         o = (o0 + o1);
 
-        // Check if the result is correct, print if not
-        
+        // Check if the result is correct
         res = (z>=theta) == (bool)o;   correct &= res;
-        // printf(" theta=%d | z=%-12d | z-theta=%-12d | z_nhat =%-12d | o0+o1=%-5d, | (z>=theta)=%-5d", theta,
-        //              z, z-theta, z_hat-r_in[0]-r_in[1],  o, (z-theta>=0));
-        // if (!res){
-        //     printf("   Wrong! \n");
-        // }
-        // else{
-        //     printf("   Correct! \n");
-        // }
-        #if PRINTIT
-        printf("x=%-12d | r_in=%-12d | o0+o1=%-5d | "\
-               "(p<=x<q)=%-5d\n", x, r_in, o, ((p<=x)&(x<q)));
-        #endif
     }
-    // printf("Test Funshade single fully correct: %s\n", correct ? "true" : "false");
+    printf("Test Funshade single fully correct: %s\n", correct ? "true" : "false");
     if (TIMEIT){
-        // printf(" - Avg. time funshade_setup:   %-5.0f (ns)\n", t_setup/(n_times));
-        // printf(" - Avg. time funshade_share:   %-5.0f (ns)\n", t_share/(n_times*2));
-        // printf(" - Avg. time funshade_eval_dist:  %-5.0f (ns)\n", t_eval_sp/(n_times*2));
-        // printf(" - Avg. time funshade_eval_sign:  %-5.0f (ns)\n", t_eval_sign/(n_times*2));
-        printf("%lu, %f, %f, %f, %f, %lu\n", l, t_setup/(n_times), t_share/(n_times*2), 
-                                    t_eval_sp/(n_times*2), t_eval_sign/(n_times*2), N_BITS);
+        printf(" - Avg. time funshade_setup:   %-5.0f (ns)\n", t_setup/(n_times));
+        printf(" - Avg. time funshade_share:   %-5.0f (ns)\n", t_share/(n_times*2));
+        printf(" - Avg. time funshade_eval_dist:  %-5.0f (ns)\n", t_eval_sp/(n_times*2));
+        printf(" - Avg. time funshade_eval_sign:  %-5.0f (ns)\n", t_eval_sign/(n_times*2));
+        // printf("l, t_setup_mean, t_share_mean, t_eval_sp_mean, t_eval_sign_mean, N_BITS, K\n");
+        // printf("%lu, %f, %f, %f, %f, %lu\n", l, t_setup/(n_times), t_share/(n_times*2), 
+        //                             t_eval_sp/(n_times*2), t_eval_sign/(n_times*2), N_BITS);
     }
     // Free everything
     free(x); free(y); free(d_x); free(d_y); free(d_x0); free(d_x1); free(d_y0); free(d_y1);
@@ -282,7 +249,7 @@ bool test_funshade_batch(size_t n_times, size_t l, size_t K){
     uint8_t *k0 = (uint8_t*)malloc(K*KEY_LEN), *k1 = (uint8_t*)malloc(K*KEY_LEN);
 
     double t_setup=0, t_share=0, t_eval_sp=0, t_eval_sign=0;
-    R_t *z     = (R_t*)malloc(v_size*sizeof(R_t));
+    R_t *z     = (R_t*)calloc(v_size, sizeof(R_t));
     R_t     o0, o1, o,                  // output of SIGN gate, should yield (z>=theta)
             theta;                      // threshold
     bool correct=true, res;
@@ -325,15 +292,17 @@ bool test_funshade_batch(size_t n_times, size_t l, size_t K){
             res += (z[idx]>=theta);
         }
         correct &= (res == (bool)o);
-        // printf(" theta=%d | z=%-12d | z-theta=%-12d | z_nhat =
     }
-     if (TIMEIT){
-        // printf(" - Avg. time funshade_setup:   %-5.0f (ns)\n", t_setup/(n_times));
-        // printf(" - Avg. time funshade_share:   %-5.0f (ns)\n", t_share/(n_times*2));
-        // printf(" - Avg. time funshade_eval_dist:  %-5.0f (ns)\n", t_eval_sp/(n_times*2));
-        // printf(" - Avg. time funshade_eval_sign:  %-5.0f (ns)\n", t_eval_sign/(n_times*2));
-        printf("%lu, %f, %f, %f, %f, %lu, %lu\n", l, t_setup/(n_times), t_share/(n_times*2), 
-                                    t_eval_sp/(n_times*2), t_eval_sign/(n_times*2), N_BITS, K);
+    printf("Test Funshade batched fully correct: %s\n", correct ? "true" : "false");
+    if (TIMEIT){
+        printf(" - Avg. time funshade_setup:   %-5.0f (ns)\n", t_setup/(n_times));
+        printf(" - Avg. time funshade_share:   %-5.0f (ns)\n", t_share/(n_times*2));
+        printf(" - Avg. time funshade_eval_dist:  %-5.0f (ns)\n", t_eval_sp/(n_times*2));
+        printf(" - Avg. time funshade_eval_sign:  %-5.0f (ns)\n", t_eval_sign/(n_times*2));
+        // printf("l, t_setup_mean, t_share_mean, t_eval_sp_mean, t_eval_sign_mean, N_BITS, K\n");
+        // printf("%lu, %f, %f, %f, %f, %lu, %lu\n", 
+        //         l, t_setup/(n_times), t_share/(n_times*2), 
+        //                             t_eval_sp/(n_times*2), t_eval_sign/(n_times*2), N_BITS, K);
     }
     // Free everything
     free(x); free(d_x); free(D_x); free(d_x0); free(d_x1); 
@@ -346,30 +315,18 @@ bool test_funshade_batch(size_t n_times, size_t l, size_t K){
 
 // ------------------------------ MAIN -------------------------------------- //
 int main() {
-    // #ifdef USE_PARALLEL
-    // omp_set_num_threads(12);
-    // printf("Using parallel with n_threads=%d\n", omp_get_num_threads());
-    // #endif
     bool correct=true;
-    // correct &= test_aes(N_REPETITIONS);
-    // correct &= test_dcf(N_REPETITIONS);
-    // correct &= test_ic(N_REPETITIONS);
-    // correct &= test_funshade(N_REPETITIONS, 1);
-    // for (size_t l = 128; l <= 1025; l=l*2)
-    // {
-    //     correct &= test_funshade(N_REPETITIONS, l);
-    // }
-    // size_t n_samples[] = {1};
-    // for (size_t k_i = 0; k_i < sizeof(n_samples)/sizeof(size_t); k_i++)
-    // {
-    //     for (size_t l = 256; l <= 1025; l=l*2)
-    //     {
-    //         correct &= test_funshade_batch(1000, l, n_samples[k_i]);
-    //     }
-    // }
-    test_funshade_batch(1, 512, 1000000);
-    if (PRINTIT)
-        if (!correct)
-            printf("Test failed. \n");
+    correct &= test_aes(N_REPETITIONS);
+    correct &= test_dcf(N_REPETITIONS);
+    correct &= test_ic(N_REPETITIONS);
+    correct &= test_funshade(N_REPETITIONS, 1);
+    correct &= test_funshade(N_REPETITIONS, EMBEDDING_LEN);
+    correct &= test_funshade_batch(N_REPETITIONS, EMBEDDING_LEN, N_REF_DB);
+    if (correct)
+    {
+        printf("All Tests passed. \n");
+    } else {
+        printf("Tests failed. \n");
+    }        
     exit(0);
 }

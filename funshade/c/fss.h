@@ -16,12 +16,9 @@
     #define SEED_LEN        32
 #endif
 
-// #ifdef USE_PARALLEL
-//     #include <omp.h>        // OpenMP
-//     #define COND_OPENMP_FOR omp parallel for
-// #else
-//     #define COND_OPENMP_FOR
-// #endif
+#if defined(_OPENMP)
+    #include <omp.h>        // OpenMP header
+#endif
 
 #include "aes.h" // AES-128-NI and AES-128-standalone
 
@@ -144,7 +141,8 @@ R_t IC_eval(bool b, R_t p, R_t q, const uint8_t kb_ic[KEY_LEN], R_t x_hat);
 //................................. SIGN GATE ................................//
 void SIGN_gen(R_t r_in, R_t r_out, uint8_t k0[KEY_LEN], uint8_t k1[KEY_LEN]);
 R_t SIGN_eval(bool b, const uint8_t kb[KEY_LEN], R_t x_hat);
-
+void SIGN_gen_batch(size_t K, R_t theta, R_t r_in_0[], R_t r_in_1[], uint8_t k0[], uint8_t k1[]);
+void SIGN_eval_batch(size_t K, bool b, const uint8_t kb[], const R_t x_hat[], R_t ob[]);
 
 //................................. FUNSHADE .................................//
 // SINGLE EVALUATION
