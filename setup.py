@@ -103,6 +103,7 @@ class SuperBuildExt(build_ext):
         #  We delay it for the setup to raise a nice error if numpy is not found.
         #  https://stackoverflow.com/questions/54117786
         import numpy
+        self.include_dirs.append(numpy.get_include())
         print("cimporting numpy version '%s'", numpy.__version__)
 
 
