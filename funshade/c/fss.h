@@ -51,17 +51,17 @@
 
 // Sizes of the various elements in the FSS key
 #define S_LEN           G_IN_LEN                            // Size of the states s
-#define V_LEN           sizeof(R_t)                         // Size of the masking values v
+#define V_LEN           sizeof(R_t)                         // Size of the masking values V
 #define CW_LEN          (S_LEN + sizeof(R_t) + 2)           // Size of the correction words
 #define CW_CHAIN_LEN    ((CW_LEN*N_BITS)+V_LEN)             // Size of the correction word chain
 #define KEY_LEN         (S_LEN + CW_CHAIN_LEN + V_LEN)      // Size of the FSS key
 
 // Positions of the elements in the correction word chain, for each correction word j
 #define S_CW_PTR(j)     (j*CW_LEN)                          // Position of state s_cw
-#define V_CW_PTR(j)     (S_CW_PTR(j) + S_LEN)               // Position of value v_cw
+#define V_CW_PTR(j)     (S_CW_PTR(j) + S_LEN)               // Position of value V_cw
 #define T_CW_L_PTR(j)   (V_CW_PTR(j) + V_LEN)               // Position of bit t_cw_l
 #define T_CW_R_PTR(j)   (T_CW_L_PTR(j) + 1)                 // Position of bit t_cw_r
-#define LAST_CW_PTR     (CW_LEN*N_BITS)                     // Position of last correction word, v_cw_n+1
+#define LAST_CW_PTR     (CW_LEN*N_BITS)                     // Position of last correction word, V_cw_n+1
 
 // Positions of left and right elements in the output of G 
 #define S_L_PTR         0                                   // Position of state s_l in G output
