@@ -30,4 +30,9 @@ As an optional dependency, it uses `libsodium` for fast and secure random number
 ### Usage
 The library is designed to be used as a black-box, with a simple API.
 
-Chech the bottom of `fss.h` for the available functions, `test_fss.c` for some uses in C, or `test_funshade.py` for a step-by-step Python example.
+Check the bottom of `fss.h` for the available functions, `test_fss.c` for some uses in C, or `test_funshade.py` for a step-by-step Python example.
+
+
+### Outside the scope of Funshade
+
+- Additive secret sharing (refer to the [paper](https://hal.science/hal-04129231/), page 22 for further explanation on this scheme)
