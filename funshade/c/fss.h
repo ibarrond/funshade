@@ -207,5 +207,16 @@ void funshade_eval_dist_batch(size_t K, size_t l, bool j,
 void funshade_eval_sign_batch(size_t K, bool j, const uint8_t kj[], const R_t z_hat_0[], const R_t z_hat_1[], R_t o_j[]);
 R_t funshade_eval_sign_batch_collapse(size_t K, bool j, const uint8_t kj[], const R_t z_hat_0[], const R_t z_hat_1[]);
 
+// .................... Outside the scope of Funshade ....................... //
+void funshade_setup_ss_batch(size_t K, size_t l, R_t theta,
+     R_t a0[], R_t a1[], R_t b0[], R_t b1[], R_t c0[], R_t c1[],
+     R_t r_in_0[],R_t r_in_1[], uint8_t k0[], uint8_t k1[]);
+
+void funshade_share_ss_batch(size_t K, size_t l, const R_t v[], const R_t ab[], R_t de[]);
+
+void funshade_eval_dist_ss_batch(size_t K, size_t l, bool j,
+    const R_t r_in_j[], const R_t d[], const R_t e[],
+    const R_t aj[], const R_t bj[], const R_t cj[],
+    R_t z_hat_j[]);
 
 #endif // __FSS_H__

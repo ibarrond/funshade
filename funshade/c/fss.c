@@ -424,3 +424,71 @@ R_t funshade_eval_sign_batch_collapse(size_t K, bool j, const uint8_t k_j[], con
     }
     return o_j;
 }
+
+// -------------------------------------------------------------------------- //
+// --------------------- Outside the scope of Funshade ---------------------- //
+// -------------------------------------------------------------------------- //
+
+// ........................... Batch evaluation ............................. //
+void funshade_setup_ss_batch(size_t K, size_t l, R_t theta,
+     R_t a0[], R_t a1[], R_t b0[], R_t b1[], R_t c0[], R_t c1[],
+     R_t r_in_0[],R_t r_in_1[], uint8_t k0[], uint8_t k1[])
+{
+    size_t idx, k;
+    // Generate randomness for scalar product
+    random_buffer((uint8_t*)a0, K*l*sizeof(R_t)); random_buffer((uint8_t*)a1, K*l*sizeof(R_t));
+    random_buffer((uint8_t*)b0, K*l*sizeof(R_t)); random_buffer((uint8_t*)b1, K*l*sizeof(R_t));
+    random_buffer((uint8_t*)c0, K*l*sizeof(R_t));
+#if defined(_OPENMP)
+    #pragma omp parallel for
+#endif
+    for (idx=0; idx<(K*l); idx++)
+    {
+        c1[idx] = (a0[idx] + a1[idx]) * (b0[idx] + b1[idx])  - c0[idx];
+    }
+    // Generate masks and fss keys
+    random_buffer((uint8_t*)r_in_0, K*sizeof(R_t));
+    random_buffer((uint8_t*)r_in_1, K*sizeof(R_t));
+#if defined(_OPENMP)
+    #pragma omp parallel for
+#endif
+    for (k=0; k<K; k+=1)
+    {
+        SIGN_gen(r_in_0[k]+r_in_1[k], 0, &k0[k*KEY_LEN], &k1[k*KEY_LEN]);
+        // Remove threshold from r_in shares
+        r_in_1[k] -= theta;
+    }
+}
+
+void funshade_share_ss_batch(size_t K, size_t l, const R_t v[], const R_t ab[], R_t de[])
+{
+    size_t idx;
+
+#if defined(_OPENMP)
+    #pragma omp parallel for
+#endif
+    for (idx=0; idx<K*l; idx++)
+    {
+        de[idx] = v[idx] - ab[idx];
+    }
+}
+
+void funshade_eval_dist_ss_batch(size_t K, size_t l, bool j, const R_t r_in_j[],
+    const R_t d[], const R_t e[], const R_t aj[], const R_t bj[],
+    const R_t cj[], R_t z_hat_j[])
+{
+    size_t k,i,idx;
+    memcpy(z_hat_j, r_in_j, K*sizeof(R_t));
+#if defined(_OPENMP)
+    #pragma omp parallel for
+#endif
+    for (k=0; k<K; k++)
+    {
+        for (i=0; i<l; i++)
+        {
+            idx = k*l + i;
+            z_hat_j[k] += j * (d[idx] * e[idx]) + (d[idx] * bj[idx]) + (e[idx] * aj[idx]) + cj[idx];
+        }
+
+    }
+}
