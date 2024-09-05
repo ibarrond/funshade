@@ -27,6 +27,15 @@ cdef extern from "fss.h" nogil:
     void SIGN_gen_batch(size_t K, R_t theta, R_t r_in_0[], R_t r_in_1[], uint8_t k0[], uint8_t k1[])
     void SIGN_eval_batch(size_t K, bool b, const uint8_t kb[], const R_t x_hat[], R_t ob[])
 
+    ## OUTSIDE The SCOPE of FUNSHADE  (batch evaluation)
+    void funshade_setup_ss_batch(size_t K, size_t l, R_t theta,
+        R_t a0[], R_t a1[], R_t b0[], R_t b1[], R_t c0[], R_t c1[],
+        R_t r_in_0[],R_t r_in_1[], uint8_t k0[], uint8_t k1[])
+    void funshade_share_ss_batch(size_t K, size_t l, const R_t v[], const R_t ab[], R_t de[])
+    void funshade_eval_dist_ss_batch(size_t K, size_t l, bint j,
+        const R_t r_in_j[], const R_t d[], const R_t e[],
+        const R_t aj[], const R_t bj[], const R_t cj[], R_t z_hat_j[])
+
 # build the corresponding numpy type for R_t (ring type)
 cdef R_t tmp = 42
 DTYPE = {
@@ -189,3 +198,73 @@ def FssEvalSign(size_t K, bool j, uint8_t[::1] k_j, R_t[::1] x_hat):
     cdef np.ndarray[R_t, ndim=1] o_j = np.empty((K), DTYPE)
     SIGN_eval_batch(K, j, &k_j[0], &x_hat[0], &o_j[0])
     return o_j
+
+#...................... Outside the scope of Funshade .........................#
+def setup_ss(size_t K, size_t l, R_t theta):
+    """Setup for the additive secret sharing.
+
+    Generates the beaver triples, input masks and function keys.
+
+    Args:
+        K (int): Number of vectors.
+        l (int): Number of elements per vector.
+        theta (int): Upscaled threshold.
+
+    Returns:
+        a0, a1, b0, b1, c0, c1 (np.ndarray): beaver triples for x and y.
+        r_in0, r_in1 (np.ndarray): input masks.
+        k0, k1 (np.ndarray): function keys.
+    """
+    cdef np.ndarray[R_t, ndim=1] a0  =\
+              np.empty((K*l), DTYPE), a1  = np.empty((K*l), DTYPE),\
+        b0  = np.empty((K*l), DTYPE), b1  = np.empty((K*l), DTYPE),\
+        c0  = np.empty((K*l), DTYPE), c1  = np.empty((K*l), DTYPE),\
+        r_in0 = np.empty((K),   DTYPE), r_in1 = np.empty((K),   DTYPE)
+
+    cdef np.ndarray[uint8_t, ndim=1] k0 = np.empty((K*KEY_LEN), np.uint8), k1 = np.empty((K*KEY_LEN), np.uint8)
+
+    funshade_setup_ss_batch(K, l, theta,
+           &a0[0], &a1[0], &b0[0], &b1[0], &c0[0], &c1[0], &r_in0[0], &r_in1[0], &k0[0], &k1[0])
+    return a0, a1, b0, b1, c0, c1, r_in0, r_in1, k0, k1
+
+def share_ss(size_t K, size_t l, R_t[::1] v, R_t[::1] ab):
+    """Generate d and e shares of an input vector (additive secret sharing)
+
+    Args:
+        l  (int): Number of elements per vector.
+        v  (np.ndarray): Vector to be shared.
+        ab (np.ndarray): Beaver triple input shares for v.
+
+    Returns:
+        de (np.ndarray): d or e share of v.
+    """
+     # Check size to avoid segfaults
+    assert v.shape[0]==ab.shape[0]==<Py_ssize_t>(K*l),\
+        "<Funshade error> Input vector v and beaver triple input shares must be of length %d (K*l)".format(K*l)
+    cdef np.ndarray[R_t, ndim=1] de = np.empty((K*l), DTYPE)
+    funshade_share_ss_batch(K, l, &v[0], &ab[0], &de[0])
+    return de
+
+def eval_dist_ss(size_t K, size_t l, bint j, R_t[::1] r_in_j, R_t[::1] d, R_t[::1] e,
+              R_t[::1] aj, R_t[::1] bj, R_t[::1] cj):
+    """Compute the distance function (scalar prod.) on the secret shares of x and y.
+
+    Args:
+        l   (int): Number of elements per vector.
+        j  (bint): Input mask bit.
+        d  (np.ndarray): d share of input.
+        e  (np.ndarray): e share of input.
+        aj (np.ndarray): Beaver triple input shares.
+        bj (np.ndarray): Beaver triple input shares.
+        cj (np.ndarray): Beaver triple shares for products ab.
+
+    Returns:
+        z_hat_j (np.ndarray): shares of the distance function evaluation result.
+    """
+     # Check array size to avoid segfaults
+    assert d.shape[0]==e.shape[0]==aj.shape[0]==bj.shape[0]==cj.shape[0]==<Py_ssize_t>(K*l),\
+        "<Funshade error> All secret shares must be of length %d (K*l)".format(K*l)
+    assert r_in_j.shape[0]==<Py_ssize_t>(K), "<Funshade error> All r_in masks must be of length %d (K)".format(K)
+    cdef np.ndarray[R_t, ndim=1] z_hat_j = np.empty((K), DTYPE)
+    funshade_eval_dist_ss_batch(K, l, j, &r_in_j[0], &d[0], &e[0], &aj[0], &bj[0], &cj[0], &z_hat_j[0])
+    return z_hat_j
